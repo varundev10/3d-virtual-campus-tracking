@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #f1f5f9;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Three.js / Leaflet mount points need explicit sizing that a parent flex/grid box can't
+   give them purely through utility classes on the canvas element itself. */
+.campus-scene,
+.campus-map {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+}
+
+.campus-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Leaflet marker icon is injected as a raw HTML string (L.divIcon), so it can't reference
+   Tailwind utility classes - it needs real, always-present CSS. */
+.campus-marker {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(233, 79, 55, 0.2);
+}
+
+.campus-marker span {
+  width: 12px;
+  height: 12px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #e94f37;
+  box-shadow: 0 0 0 4px rgba(233, 79, 55, 0.22);
+}
+
+/* Leaflet's own attribution/zoom controls need to stay above the map's z-stack when the map
+   sits inside a rounded, overflow-hidden card. */
+.leaflet-container {
+  border-radius: inherit;
+}

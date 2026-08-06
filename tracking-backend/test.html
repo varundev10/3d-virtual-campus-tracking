@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Live location feed</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+  <style>body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;margin:1rem;} pre{background:#f6f8fa;padding:1rem;border-radius:6px;overflow:auto;max-height:60vh;}</style>
+</head>
+<body>
+  <h3>Live location feed</h3>
+  <p>When the backend is running, send a POST to <code>/api/locations</code> and messages will appear below.</p>
+  <pre id="log"></pre>
+  <script>
+    const logEl = document.getElementById('log');
+    function log(msg){ logEl.textContent += msg + "\n"; }
+
+    const socket = new SockJS('http://localhost:8080/ws');
+    const client = Stomp.over(socket);
+    client.connect({}, function () {
+      log('Connected to /ws — subscribing to /topic/locations');
+      client.subscribe('/topic/locations', function (message) {
+        try {
+          const obj = JSON.parse(message.body);
+          log(JSON.stringify(obj, null, 2));
+        } catch(e){
+          log(message.body);
+        }
+      });
+    }, function(error){ log('STOMP error: ' + error); });
+  </script>
+</body>
+</html>

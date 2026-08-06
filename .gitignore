@@ -1,0 +1,24 @@
+# Java / Spring Boot target files
+**/target/
+**.class
+
+# Node / React dependencies
+**/node_modules/
+**/dist/
+**/build/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Operating system files
+.DS_Store
+Thumbs.db
+*.log
+
+# Sensitive local configurations
+**/application.properties
+.env
+#zip files 
+*.zip
