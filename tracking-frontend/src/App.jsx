@@ -95,6 +95,7 @@ export default function App() {
     const disconnect = connectLiveLocations(
       (ping) => {
         if (!ping.userId || ping.latitude == null || ping.longitude == null) return;
+        if (!isLikelyInsideCampus(ping.latitude, ping.longitude)) return;
         setLiveLocations((items) => ({
           ...items,
           [ping.userId]: ping,
@@ -112,10 +113,12 @@ export default function App() {
 
     api.getRecentLocations(selectedUser.id)
       .then((pings) => {
-        if (pings[0]) {
+        const latestInsideCampus = pings.find((ping) =>
+          isLikelyInsideCampus(ping.latitude, ping.longitude));
+        if (latestInsideCampus) {
           setLiveLocations((items) => ({
             ...items,
-            [selectedUser.id]: pings[0],
+            [selectedUser.id]: latestInsideCampus,
           }));
         }
       })
@@ -173,13 +176,25 @@ export default function App() {
         };
 
         const insideCampus = isLikelyInsideCampus(ping.latitude, ping.longitude);
-        setCurrentPosition({ ...ping, insideCampus });
-        setLiveLocations((items) => ({ ...items, [selectedUser.id]: ping }));
-        setTrackingState(insideCampus ? 'tracking' : 'outside');
-
         if (!insideCampus) {
-          addActivity('GEOFENCE', 'Current GPS estimate is outside the UCER campus boundary');
+          if (watchId.current != null) {
+            navigator.geolocation.clearWatch(watchId.current);
+            watchId.current = null;
+          }
+          setCurrentPosition(null);
+          setLiveLocations((items) => {
+            const next = { ...items };
+            delete next[selectedUser.id];
+            return next;
+          });
+          setTrackingState('outside');
+          addActivity('GPS', 'Outside campus boundary; tracking stopped without sending this location');
+          return;
         }
+
+        setCurrentPosition({ ...ping, insideCampus: true });
+        setLiveLocations((items) => ({ ...items, [selectedUser.id]: ping }));
+        setTrackingState('tracking');
 
         try {
           await api.postLocation(ping);

@@ -11,6 +11,15 @@ npm run dev
 
 The app runs on `http://127.0.0.1:5173` and expects the Spring Boot backend on `http://localhost:8080`.
 
+## Campus 3D Tiles
+
+The UCER Metashape 3D Tiles export is loaded from
+`public/models/ucer-campus-tiles/tileset.json`. The campus tile files are large runtime
+assets and are excluded from Git. For a fresh checkout, extract the contents of
+`ucer-campus-tiles.3tz` into `public/models/ucer-campus-tiles/`, preserving the
+`tileset.json` and `Data/` paths. The viewer streams the tile levels it needs as you
+zoom and rotate the 3D campus.
+
 ## Backend alignment
 
 - Reads users from `GET /api/users`

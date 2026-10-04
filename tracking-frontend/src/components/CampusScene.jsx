@@ -2,7 +2,11 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
-import { CAMPUS_ZONES, locationToScenePoint } from '../lib/campus.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { TilesRenderer } from '3d-tiles-renderer/three';
+import { GLTFExtensionsPlugin } from '3d-tiles-renderer/three/plugins';
+import { CAMPUS_ELEVATION, CAMPUS_ZONES, UCER_CENTER, locationToScenePoint } from '../lib/campus.js';
 import { CAMPUS_MODEL_TRANSFORM, getModelFormat } from '../lib/modelConfig.js';
 
 function createLabelTexture(text) {
@@ -140,6 +144,43 @@ function prepareCampusModel(object) {
   });
 }
 
+function geodeticToEcef(latitude, longitude, height) {
+  const semiMajorAxis = 6378137;
+  const eccentricitySquared = 6.69437999014e-3;
+  const lat = THREE.MathUtils.degToRad(latitude);
+  const lon = THREE.MathUtils.degToRad(longitude);
+  const sinLat = Math.sin(lat);
+  const cosLat = Math.cos(lat);
+  const primeVerticalRadius = semiMajorAxis / Math.sqrt(1 - eccentricitySquared * sinLat * sinLat);
+
+  return new THREE.Vector3(
+    (primeVerticalRadius + height) * cosLat * Math.cos(lon),
+    (primeVerticalRadius + height) * cosLat * Math.sin(lon),
+    (primeVerticalRadius * (1 - eccentricitySquared) + height) * sinLat,
+  );
+}
+
+function createEcefToCampusFrame() {
+  const latitude = THREE.MathUtils.degToRad(UCER_CENTER.lat);
+  const longitude = THREE.MathUtils.degToRad(UCER_CENTER.lng);
+  const sinLat = Math.sin(latitude);
+  const cosLat = Math.cos(latitude);
+  const sinLon = Math.sin(longitude);
+  const cosLon = Math.cos(longitude);
+  const origin = geodeticToEcef(UCER_CENTER.lat, UCER_CENTER.lng, CAMPUS_ELEVATION);
+  const east = new THREE.Vector3(-sinLon, cosLon, 0);
+  const north = new THREE.Vector3(-sinLat * cosLon, -sinLat * sinLon, cosLat);
+  const up = new THREE.Vector3(cosLat * cosLon, cosLat * sinLon, sinLat);
+  const south = north.negate();
+
+  return new THREE.Matrix4().set(
+    east.x, east.y, east.z, -east.dot(origin),
+    up.x, up.y, up.z, -up.dot(origin),
+    south.x, south.y, south.z, -south.dot(origin),
+    0, 0, 0, 1,
+  );
+}
+
 function createPin(color = '#e94f37') {
   const group = new THREE.Group();
   const stem = new THREE.Mesh(
@@ -176,23 +217,39 @@ export default function CampusScene({
   const sceneRef = useRef(null);
   const placeholderRef = useRef(null);
   const modelRef = useRef(null);
+  const rendererRef = useRef(null);
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
+  const tilesRendererRef = useRef(null);
+  const tilesFrameRef = useRef(null);
 
   useEffect(() => {
     const mount = mountRef.current;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#dfe8ed');
-    scene.fog = new THREE.Fog('#dfe8ed', 90, 190);
+    scene.fog = new THREE.Fog('#dfe8ed', 700, 1600);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.1, 1000);
-    camera.position.set(78, 72, 86);
+    const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.1, 10000);
+    camera.position.set(0, 360, 470);
     camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0);
+    controls.enableDamping = true;
+    controls.minDistance = 35;
+    controls.maxDistance = 1800;
+    controls.maxPolarAngle = Math.PI * 0.48;
+    controls.update();
+    controlsRef.current = controls;
 
     const ambient = new THREE.HemisphereLight('#ffffff', '#8ea4ad', 2.6);
     scene.add(ambient);
@@ -212,9 +269,12 @@ export default function CampusScene({
       frame = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
       markersRef.current.forEach((marker) => {
-        marker.position.y = Math.sin(elapsed * 2.4 + marker.position.x) * 0.35;
-        marker.rotation.y += 0.012;
+        marker.rotation.y = elapsed * 0.7;
       });
+      controls.update();
+      camera.updateMatrixWorld();
+      scene.updateMatrixWorld(true);
+      tilesRendererRef.current?.update();
       renderer.render(scene, camera);
     };
     animate();
@@ -223,14 +283,29 @@ export default function CampusScene({
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
+      if (tilesRendererRef.current) {
+        tilesRendererRef.current.setResolutionFromRenderer(camera, renderer);
+      }
     };
     window.addEventListener('resize', handleResize);
 
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', handleResize);
+      controls.dispose();
+      controlsRef.current = null;
+      if (tilesRendererRef.current) {
+        tilesRendererRef.current.dispose();
+        tilesRendererRef.current = null;
+      }
+      if (tilesFrameRef.current) {
+        scene.remove(tilesFrameRef.current);
+        tilesFrameRef.current = null;
+      }
       renderer.dispose();
       mount.removeChild(renderer.domElement);
+      rendererRef.current = null;
+      cameraRef.current = null;
       if (modelRef.current) disposeObject(modelRef.current);
       if (placeholderRef.current) disposeObject(placeholderRef.current);
       markersRef.current.clear();
@@ -261,6 +336,17 @@ export default function CampusScene({
       modelRef.current = null;
     };
 
+    const removeCurrentTiles = () => {
+      if (tilesRendererRef.current) {
+        tilesRendererRef.current.dispose();
+        tilesRendererRef.current = null;
+      }
+      if (tilesFrameRef.current) {
+        scene.remove(tilesFrameRef.current);
+        tilesFrameRef.current = null;
+      }
+    };
+
     const addModel = (object) => {
       if (cancelled) {
         disposeObject(object);
@@ -268,6 +354,7 @@ export default function CampusScene({
       }
 
       removeCurrentModel();
+      removeCurrentTiles();
       prepareCampusModel(object);
       scene.add(object);
       modelRef.current = object;
@@ -287,6 +374,7 @@ export default function CampusScene({
       });
 
       if (modelFormat === 'gltf') {
+        removeCurrentTiles();
         new GLTFLoader().load(
           campusModelUrl,
           (gltf) => addModel(gltf.scene),
@@ -297,6 +385,7 @@ export default function CampusScene({
       }
 
       if (modelFormat === 'obj') {
+        removeCurrentTiles();
         new OBJLoader().load(
           campusModelUrl,
           addModel,
@@ -306,7 +395,53 @@ export default function CampusScene({
         return;
       }
 
-      showFallback('Unsupported model format. Use GLB, GLTF, or OBJ.');
+      if (modelFormat === 'tileset') {
+        const camera = cameraRef.current;
+        const renderer = rendererRef.current;
+        if (!camera || !renderer) {
+          showFallback('3D viewer is not ready. Reload the page to retry.');
+          return;
+        }
+
+        removeCurrentModel();
+        removeCurrentTiles();
+        const tiles = new TilesRenderer(campusModelUrl);
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath('/draco/');
+        tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader }));
+        const frame = new THREE.Group();
+        frame.name = 'campus-east-north-up-frame';
+        frame.matrixAutoUpdate = false;
+        frame.matrix.copy(createEcefToCampusFrame());
+        frame.add(tiles.group);
+        scene.add(frame);
+        frame.updateMatrixWorld(true);
+
+        tiles.setCamera(camera);
+        tiles.setResolutionFromRenderer(camera, renderer);
+        tiles.errorTarget = 4;
+        tilesRendererRef.current = tiles;
+        tilesFrameRef.current = frame;
+
+        const handleFirstTile = () => {
+          if (cancelled) return;
+          placeholderRef.current.visible = false;
+          onModelStatus?.({
+            state: 'loaded',
+            label: 'Streaming campus',
+            detail: '3D Tiles · visible detail streams as you navigate',
+          });
+        };
+        const handleLoadError = (event) => {
+          if (!event.tile) showFallback(`Could not load campus tiles: ${event.error?.message ?? 'check the tileset files'}`);
+        };
+
+        tiles.addEventListener('load-model', handleFirstTile);
+        tiles.addEventListener('load-error', handleLoadError);
+        return;
+      }
+
+      showFallback('Unsupported model format. Use a 3D Tiles tileset, GLB, GLTF, or OBJ.');
     };
 
     if (campusModelUrl.startsWith('blob:')) {
@@ -322,6 +457,7 @@ export default function CampusScene({
 
     return () => {
       cancelled = true;
+      removeCurrentTiles();
     };
   }, [campusModelUrl, onModelStatus]);
 
@@ -349,8 +485,7 @@ export default function CampusScene({
       }
 
       const point = locationToScenePoint(ping.latitude, ping.longitude);
-      marker.position.x = point.x;
-      marker.position.z = point.z;
+      marker.position.set(point.x, point.y, point.z);
     });
   }, [currentPosition, locations]);
 

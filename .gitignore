@@ -6,6 +6,8 @@
 **/node_modules/
 **/dist/
 **/build/
+tracking-frontend/.npm-cache/
+tracking-frontend/public/models/ucer-campus-tiles/
 
 # IDE files
 .idea/
