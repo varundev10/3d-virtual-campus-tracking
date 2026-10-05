@@ -7,6 +7,7 @@ public class LocationUpdateRequest {
     private Long userId;
     private Double latitude;
     private Double longitude;
+    private Integer floorLevel;
     private String beaconId;
     private String wifiPointId;
     private String rfidTagId;

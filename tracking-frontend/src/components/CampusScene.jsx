@@ -6,7 +6,13 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { TilesRenderer } from '3d-tiles-renderer/three';
 import { GLTFExtensionsPlugin } from '3d-tiles-renderer/three/plugins';
-import { CAMPUS_ELEVATION, CAMPUS_ZONES, UCER_CENTER, locationToScenePoint } from '../lib/campus.js';
+import {
+  CAMPUS_ELEVATION,
+  CAMPUS_FLOOR_HEIGHT_METERS,
+  CAMPUS_ZONES,
+  UCER_CENTER,
+  locationToScenePoint,
+} from '../lib/campus.js';
 import { CAMPUS_MODEL_TRANSFORM, getModelFormat } from '../lib/modelConfig.js';
 
 function createLabelTexture(text) {
@@ -209,6 +215,8 @@ function createPin(color = '#e94f37') {
 export default function CampusScene({
   locations,
   currentPosition,
+  selectedUserId,
+  floorLevel,
   campusModelUrl,
   onModelStatus,
 }) {
@@ -222,6 +230,7 @@ export default function CampusScene({
   const controlsRef = useRef(null);
   const tilesRendererRef = useRef(null);
   const tilesFrameRef = useRef(null);
+  const terrainRaycasterRef = useRef(new THREE.Raycaster());
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -265,6 +274,7 @@ export default function CampusScene({
 
     let frame;
     const clock = new THREE.Clock();
+    let lastTerrainSnap = 0;
     const animate = () => {
       frame = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
@@ -275,6 +285,22 @@ export default function CampusScene({
       camera.updateMatrixWorld();
       scene.updateMatrixWorld(true);
       tilesRendererRef.current?.update();
+      if (tilesRendererRef.current && elapsed - lastTerrainSnap > 0.75) {
+        lastTerrainSnap = elapsed;
+        const raycaster = terrainRaycasterRef.current;
+        raycaster.ray.direction.set(0, -1, 0);
+        raycaster.far = 5000;
+        markersRef.current.forEach((marker) => {
+          const groundPoint = marker.userData.groundPoint;
+          if (!groundPoint) return;
+          raycaster.ray.origin.set(groundPoint.x, 2500, groundPoint.z);
+          const hits = raycaster.intersectObject(tilesRendererRef.current.group, true);
+          if (hits.length) {
+            marker.position.y = hits[0].point.y + marker.userData.floorOffset;
+            marker.userData.groundResolved = true;
+          }
+        });
+      }
       renderer.render(scene, camera);
     };
     animate();
@@ -485,9 +511,19 @@ export default function CampusScene({
       }
 
       const point = locationToScenePoint(ping.latitude, ping.longitude);
-      marker.position.set(point.x, point.y, point.z);
+      const isSelectedUser = String(selectedUserId) === id
+        || String(currentPosition?.userId) === id;
+      const markerFloorLevel = isSelectedUser ? floorLevel : (ping.floorLevel ?? 0);
+      marker.userData.groundPoint = { x: point.x, z: point.z };
+      marker.userData.floorOffset = Math.max(0, Number(markerFloorLevel) || 0) * CAMPUS_FLOOR_HEIGHT_METERS;
+      if (!marker.userData.groundResolved) {
+        marker.position.set(point.x, point.y + marker.userData.floorOffset, point.z);
+      } else {
+        marker.position.x = point.x;
+        marker.position.z = point.z;
+      }
     });
-  }, [currentPosition, locations]);
+  }, [currentPosition, floorLevel, locations, selectedUserId]);
 
   return <div ref={mountRef} className="campus-scene" aria-label="3D campus model" />;
 }

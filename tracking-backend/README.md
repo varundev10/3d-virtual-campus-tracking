@@ -70,6 +70,12 @@ Their definitions live in `src/main/java/com/campus/tracking/model`. Location
 coordinates are stored as latitude/longitude numeric columns. PostGIS is not
 configured in this backend yet.
 
+Location pings also carry an optional `floorLevel` (0 = ground floor). The 3D
+viewer snaps each marker to the streamed model surface, then offsets upper floors
+using the configurable 3.5 m floor-height estimate in the frontend. Replace that
+estimate with surveyed floor elevations for building-accurate indoor positioning;
+GPS alone does not determine a person's floor.
+
 ## Run the application
 From the `tracking-backend` directory run:
 

@@ -20,11 +20,13 @@ public class AttendanceController {
 
     @PostMapping("/present")
     public ResponseEntity<AttendanceRecord> markPresent(@RequestParam Long userId, @RequestParam String classroomId) {
+
         return ResponseEntity.ok(attendanceService.markPresent(userId, classroomId));
     }
 
     @PostMapping("/bunk")
     public ResponseEntity<AttendanceRecord> markBunked(@RequestParam Long userId, @RequestParam String classroomId) {
+
         return ResponseEntity.ok(attendanceService.markBunked(userId, classroomId));
     }
 

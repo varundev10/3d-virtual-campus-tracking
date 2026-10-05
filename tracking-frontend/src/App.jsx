@@ -31,6 +31,7 @@ export default function App() {
   const [liveLocations, setLiveLocations] = useState({});
   const [currentPosition, setCurrentPosition] = useState(null);
   const [trackingState, setTrackingState] = useState('idle');
+  const [floorLevel, setFloorLevel] = useState(0);
   const [socketState, setSocketState] = useState('connecting');
   const [backendState, setBackendState] = useState('checking');
   const [campusModelUrl, setCampusModelUrl] = useState(DEFAULT_CAMPUS_MODEL_URL);
@@ -172,6 +173,7 @@ export default function App() {
           userId: selectedUser.id,
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
+          floorLevel,
           source: 'GPS',
         };
 
@@ -263,11 +265,13 @@ export default function App() {
         <OperationsPanel
           users={users}
           selectedUserId={selectedUserId}
+          floorLevel={floorLevel}
           roleView={roleView}
           trackingState={trackingState}
           backendState={backendState}
           socketState={socketState}
           onSelectUser={setSelectedUserId}
+          onFloorLevel={setFloorLevel}
           onRoleView={setRoleView}
           onStartTracking={startTracking}
           onStopTracking={() => stopTracking()}
@@ -302,6 +306,8 @@ export default function App() {
             <CampusScene
               locations={visibleLocations}
               currentPosition={currentPosition}
+              selectedUserId={selectedUserId}
+              floorLevel={floorLevel}
               campusModelUrl={campusModelUrl}
               onModelStatus={setModelStatus}
             />

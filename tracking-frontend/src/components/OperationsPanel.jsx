@@ -3,11 +3,13 @@ const classrooms = ['A-204', 'B-112', 'LAB-3', 'LIB-HALL'];
 export default function OperationsPanel({
   users,
   selectedUserId,
+  floorLevel,
   roleView,
   trackingState,
   backendState,
   socketState,
   onSelectUser,
+  onFloorLevel,
   onRoleView,
   onStartTracking,
   onStopTracking,
@@ -63,6 +65,20 @@ export default function OperationsPanel({
           <h2>GPS Session</h2>
           <span>{trackingState}</span>
         </div>
+        <label>
+          User floor
+          <select
+            value={floorLevel}
+            onChange={(event) => onFloorLevel(Number(event.target.value))}
+            aria-label="User floor"
+          >
+            <option value={0}>Ground floor</option>
+            <option value={1}>Floor 1</option>
+            <option value={2}>Floor 2</option>
+            <option value={3}>Floor 3</option>
+            <option value={4}>Floor 4</option>
+          </select>
+        </label>
         <div className="button-row">
           <button className="primary-action" type="button" onClick={onStartTracking}>
             Start

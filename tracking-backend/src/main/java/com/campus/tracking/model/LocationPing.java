@@ -19,6 +19,9 @@ public class LocationPing {
     private Double latitude;
     private Double longitude;
 
+    /** Ground floor is 0; upper floors are positive offsets above the local surface. */
+    private Integer floorLevel = 0;
+
     private String beaconId;
     private String wifiPointId;
     private String rfidTagId;

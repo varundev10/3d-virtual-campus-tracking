@@ -3,6 +3,7 @@ export const UCER_CENTER = {
   lng: 81.9106717343,
 };
 export const CAMPUS_ELEVATION = 283.8353;
+export const CAMPUS_FLOOR_HEIGHT_METERS = 3.5;
 
 export const CAMPUS_GEOFENCE = [
   [25.3448576127, 81.9109565113],
