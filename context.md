@@ -41,7 +41,7 @@ Key differentiators:
 | Data Acquisition | Aerial imagery of campus | UAV / Drone |
 | 3D Modeling | SfM point cloud → textured mesh | Agisoft Metashape |
 | GIS & Geofencing | Spatial alignment, boundary definition | QGIS, GCPs, Shapefiles |
-| Backend & Tracking | GPS ingestion, geofence validation, attendance logic | Spring Boot, WebSocket (STOMP), JWT, PostgreSQL, MongoDB |
+| Backend & Tracking | GPS ingestion, geofence validation, attendance logic | Spring Boot, WebSocket (STOMP), JWT, PostgreSQL |
 | Visualization | 3D model render, live user pins | Three.js, React.js, Leaflet.js, OpenStreetMap |
 
 ---
@@ -67,8 +67,7 @@ Key differentiators:
 - Each coordinate undergoes a **Point-in-Polygon check**:
   - **Inside geofence** → coordinate broadcast, attendance logged to PostgreSQL, map updated.
   - **Outside geofence** → session terminated, WebSocket closed, no data stored.
-- **MongoDB** records geospatial event logs (entry, exit, zone transitions, movement history) using native GeoJSON.
-- **PostgreSQL** stores structured attendance records, user profiles, session data.
+- **PostgreSQL** is the single database for user profiles, GPS location history, attendance, alerts, and campus event records.
 
 ### Phase 4 — Frontend & 3D Visualization
 - **React.js** builds the web UI: GPS permission flow, campus map viewer, role-based dashboards.
@@ -98,7 +97,7 @@ Key differentiators:
      - Denied  → map-view-only mode
 5. Device sends GPS coordinates → Backend via WebSocket
 6. Backend: Point-in-Polygon check against geofence
-     - Inside  → broadcast to frontend, log attendance (PostgreSQL), store event (MongoDB)
+     - Inside  → broadcast to frontend and store location/attendance records in PostgreSQL
      - Outside → terminate session, close WebSocket, stop data collection
 7. Frontend: update user pins on 3D map in real time
 8. Attendance: match coordinates to classroom polygon during scheduled class hours
@@ -128,8 +127,7 @@ Key differentiators:
 ### Databases
 | Database | Type | Purpose |
 |---|---|---|
-| PostgreSQL | Relational | Attendance records, user profiles, session data |
-| MongoDB | NoSQL (GeoJSON) | Geospatial event logs, entry/exit events, movement history |
+| PostgreSQL | Relational | User profiles, location history, attendance, alerts, and campus event records |
 
 ### DevOps & Tools
 | Tool | Role |

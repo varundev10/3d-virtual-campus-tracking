@@ -1,59 +1,34 @@
 <#
-set-db-creds.ps1
+Starts the backend using PostgreSQL connection details without writing credentials
+to application.properties.
 
-Prompts for MySQL connection details and updates
-src/main/resources/application.properties with the provided values.
-
-Usage (PowerShell):
-  .\set-db-creds.ps1
-
-This script stores the password in plaintext in application.properties so Spring Boot can read it.
-Do not commit the updated properties file to source control if it contains secrets.
+Usage (PowerShell): .\set-db-creds.ps1
 #>
 
+$dbHost = Read-Host 'PostgreSQL host [localhost]'
+if ([string]::IsNullOrWhiteSpace($dbHost)) { $dbHost = 'localhost' }
+
+$dbPort = Read-Host 'PostgreSQL port [5432]'
+if ([string]::IsNullOrWhiteSpace($dbPort)) { $dbPort = '5432' }
+
+$dbName = Read-Host 'Database name [campus_tracking]'
+if ([string]::IsNullOrWhiteSpace($dbName)) { $dbName = 'campus_tracking' }
+
+$dbUser = Read-Host 'Database username [campus_user]'
+if ([string]::IsNullOrWhiteSpace($dbUser)) { $dbUser = 'campus_user' }
+
+$securePassword = Read-Host 'Database password' -AsSecureString
+$passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
 try {
-    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-    $propPath = Join-Path $scriptDir 'src\main\resources\application.properties'
-
-    if (-not (Test-Path $propPath)) {
-        Write-Error "application.properties not found at $propPath"
-        exit 1
-    }
-
-    # Backup
-    Copy-Item -Path $propPath -Destination ($propPath + '.bak') -Force
-
-    Write-Host "Enter MySQL connection details. Press Enter to accept defaults in [brackets]."
-    $host = Read-Host "MySQL host" -Default 'localhost'
-    $port = Read-Host "MySQL port" -Default '3306'
-    $db   = Read-Host "Database name" -Default 'campus_tracking'
-    $user = Read-Host "DB username" -Default 'campus_user'
-    $securePwd = Read-Host "DB password (input is hidden)" -AsSecureString
-    $pwdPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePwd)
-    $pwd = [Runtime.InteropServices.Marshal]::PtrToStringAuto($pwdPtr)
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pwdPtr)
-
-    $url = "jdbc:mysql://$host:$port/$db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-
-    $content = Get-Content -Path $propPath -Raw
-
-    if ($content -match 'spring.datasource.url=') {
-        $content = [Regex]::Replace($content, 'spring.datasource.url=.*', "spring.datasource.url=$url")
-    } else { $content += "`n# MySQL datasource URL`nspring.datasource.url=$url`n" }
-
-    if ($content -match 'spring.datasource.username=') {
-        $content = [Regex]::Replace($content, 'spring.datasource.username=.*', "spring.datasource.username=$user")
-    } else { $content += "spring.datasource.username=$user`n" }
-
-    if ($content -match 'spring.datasource.password=') {
-        $content = [Regex]::Replace($content, 'spring.datasource.password=.*', "spring.datasource.password=$pwd")
-    } else { $content += "spring.datasource.password=$pwd`n" }
-
-    Set-Content -Path $propPath -Value $content -Force
-
-    Write-Host "Updated application.properties (backup at application.properties.bak)."
-    Write-Host "Now run: .\mvnw spring-boot:run  (from project root)"
-} catch {
-    Write-Error "Error: $_"
-    exit 1
+    $env:DB_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+} finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
 }
+
+$env:DB_URL = "jdbc:postgresql://$($dbHost):$($dbPort)/$($dbName)"
+$env:DB_USERNAME = $dbUser
+
+Write-Host 'Starting Spring Boot with the supplied PostgreSQL settings...'
+Push-Location $PSScriptRoot
+& .\mvnw.cmd spring-boot:run
+Pop-Location
