@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Icon from '../components/ui/Icon.jsx';
 import CommandPalette from '../components/CommandPalette.jsx';
 import { Link, useRouter } from '../lib/router.jsx';
@@ -26,10 +26,12 @@ function readCollapsed() {
 export default function AdminLayout({ title, actions, children }) {
   const { path } = useRouter();
   const { user, logout } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  // The mobile drawer counts as open only on the route it was opened from, so navigating closes it.
+  const [menuOpenAt, setMenuOpenAt] = useState(null);
+  if (menuOpenAt !== null && menuOpenAt !== path) setMenuOpenAt(null);
+  const menuOpen = menuOpenAt === path;
+  const setMenuOpen = (next) => setMenuOpenAt(next ? path : null);
   const [collapsed, setCollapsed] = useState(readCollapsed);
-
-  useEffect(() => setMenuOpen(false), [path]);
 
   const toggleCollapsed = () => {
     setCollapsed((value) => {
@@ -105,7 +107,7 @@ export default function AdminLayout({ title, actions, children }) {
             aria-label="Open navigation menu"
             aria-expanded={menuOpen}
             aria-controls="admin-sidebar"
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => setMenuOpen(!menuOpen)}
           >
             <Icon name="menu" />
           </button>

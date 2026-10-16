@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../components/ui/Icon.jsx';
 import CommandPalette from '../components/CommandPalette.jsx';
 import { Link, useRouter } from '../lib/router.jsx';
@@ -15,10 +15,14 @@ const IMMERSIVE = ['/app/explore'];
 
 function ProfileMenu({ user, onLogout }) {
   const { path } = useRouter();
-  const [open, setOpen] = useState(false);
+  // The menu counts as open only on the route it was opened from, so navigating closes it. The stale
+  // value is cleared during render (React's supported "reset state when a prop changes" pattern) so
+  // coming back to that route later does not reopen it.
+  const [openAt, setOpenAt] = useState(null);
+  if (openAt !== null && openAt !== path) setOpenAt(null);
+  const open = openAt === path;
+  const setOpen = useCallback((next) => setOpenAt(next ? path : null), [path]);
   const ref = useRef(null);
-
-  useEffect(() => setOpen(false), [path]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -37,7 +41,7 @@ function ProfileMenu({ user, onLogout }) {
       document.removeEventListener('pointerdown', onPointer);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   return (
     <div className="user-menu" ref={ref}>
@@ -47,7 +51,7 @@ function ProfileMenu({ user, onLogout }) {
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls="user-menu-pop"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
       >
         <span className="avatar" aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
         <span className="user-menu-name">{user.name}</span>

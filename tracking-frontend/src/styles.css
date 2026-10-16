@@ -39,6 +39,14 @@
   --violet: #a78bfa;
   --violet-soft: rgba(167, 139, 250, 0.14);
 
+  /* Selected state (lime, so it never reads as the amber warning status).
+     Used for the selected building / list item / marker once selection is restyled. */
+  --select: #bef264;
+  --select-2: #d9f99d;
+  --select-ink: #14210a;
+  --select-soft: rgba(190, 242, 100, 0.14);
+  --select-line: rgba(190, 242, 100, 0.45);
+
   /* Status (always paired with an icon or label) */
   --good: #34d399;
   --good-soft: rgba(52, 211, 153, 0.13);
@@ -71,14 +79,76 @@
   --glow: 0 0 0 1px var(--accent-line), 0 0 24px rgba(34, 211, 238, 0.18);
   --blur: saturate(140%) blur(16px);
 
-  /* Motion */
+  /* Type scale. Values match the sizes already used most across the app. */
+  --text-2xs: 0.64rem;
+  --text-xs: 0.72rem;
+  --text-sm: 0.82rem;
+  --text-md: 0.9rem;
+  --text-base: 1rem;
+  --text-lg: 1.15rem;
+  --text-xl: 1.6rem;
+  --text-2xl: 2.2rem;
+  --text-hero: clamp(2.4rem, 6vw, 4.6rem);
+  --track-tight: -0.01em;
+  --track-label: 0.16em;
+  --leading-tight: 1.25;
+  --leading-body: 1.55;
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Floating HUD panels over the 3D stage share one glass recipe. */
+  --hud-bg: var(--glass);
+  --hud-bg-strong: var(--glass-strong);
+  --hud-border: var(--line-strong);
+  --hud-radius: 14px;
+  --hud-shadow: var(--shadow-float);
+  --hud-inset: 16px;
+
+  /* Motion. --ease eases things out; --ease-in-out is for camera-like, symmetrical moves. */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --fast: 140ms;
-  --med: 240ms;
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-instant: 80ms;
+  --dur-fast: 140ms;
+  --dur-med: 240ms;
+  --dur-slow: 320ms;
+  --dur-enter: 500ms;
+  --dur-scene: 900ms;
+  --fast: var(--dur-fast);
+  --med: var(--dur-med);
+
+  /* Stacking layers. Scene layers sit inside the explorer stage; the rest are page-level. */
+  --z-below: -1;
+  --z-scene-fade: 1;
+  --z-scene-hint: 2;
+  --z-scene-controls: 3;
+  --z-scene-panel: 4;
+  --z-scene-toolbar: 5;
+  --z-scene-overlay: 6;
+  --z-admin-topbar: 20;
+  --z-bottom-nav: 30;
+  --z-header: 40;
+  --z-popover: 50;
+  --z-scrim: 50;
+  --z-drawer: 60;
+  --z-skip-link: 100;
+  --z-toast: 1000;
 
   /* Layout */
   --header-h: 64px;
   --bottom-nav-h: 0px;
+  --sidebar-open-w: 260px;
+  --sidebar-rail-w: 76px;
+  --panel-w: 380px;
 
   font-family: var(--font);
   color: var(--ink);
@@ -187,7 +257,7 @@ button {
   position: absolute;
   left: 12px;
   top: -48px;
-  z-index: 100;
+  z-index: var(--z-skip-link);
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   background: var(--accent);
@@ -1108,7 +1178,7 @@ textarea.input { resize: vertical; }
   position: fixed;
   right: 16px;
   bottom: 16px;
-  z-index: 1000;
+  z-index: var(--z-toast);
   display: grid;
   gap: 8px;
   width: min(380px, calc(100vw - 32px));
@@ -1444,12 +1514,12 @@ textarea.input { resize: vertical; }
 .user-header {
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: var(--z-header);
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-5);
   height: var(--header-h);
-  padding: 0 20px;
+  padding: 0 var(--space-5);
   border-bottom: 1px solid var(--line);
   background: rgba(5, 10, 20, 0.72);
   backdrop-filter: var(--blur);
@@ -1547,15 +1617,15 @@ textarea.input { resize: vertical; }
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 50;
+  z-index: var(--z-popover);
   display: grid;
   gap: 4px;
   width: 260px;
   padding: 8px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--hud-border);
   border-radius: var(--radius);
-  background: var(--glass-strong);
-  box-shadow: var(--shadow-float);
+  background: var(--hud-bg-strong);
+  box-shadow: var(--hud-shadow);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   transform-origin: top right;
@@ -1730,21 +1800,21 @@ textarea.input { resize: vertical; }
 
 .viewer-toolbar {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 5;
+  top: var(--hud-inset);
+  left: var(--hud-inset);
+  z-index: var(--z-scene-toolbar);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: 14px;
-  background: var(--glass);
-  box-shadow: var(--shadow-float);
+  border: 1px solid var(--hud-border);
+  border-radius: var(--hud-radius);
+  background: var(--hud-bg);
+  box-shadow: var(--hud-shadow);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
-  animation: fade-up 0.5s var(--ease) both;
+  animation: fade-up var(--dur-enter) var(--ease) both;
 }
 
 .viewer-toolbar .segmented-control { border-color: transparent; background: transparent; }
@@ -1781,7 +1851,7 @@ textarea.input { resize: vertical; }
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: var(--z-scene-fade);
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(5, 10, 20, 0.45), transparent 18%),
@@ -1790,16 +1860,16 @@ textarea.input { resize: vertical; }
 
 .viewer-hint {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
-  z-index: 2;
+  left: var(--hud-inset);
+  bottom: var(--hud-inset);
+  z-index: var(--z-scene-hint);
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--glass);
+  background: var(--hud-bg);
   color: var(--ink-2);
   font-family: var(--mono);
   font-size: 0.68rem;
@@ -1816,19 +1886,19 @@ textarea.input { resize: vertical; }
    so the scene stays draggable in the gaps between cards. */
 .explorer-panel {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  bottom: 16px;
-  z-index: 4;
+  top: var(--hud-inset);
+  right: var(--hud-inset);
+  bottom: var(--hud-inset);
+  z-index: var(--z-scene-panel);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: 380px;
+  width: var(--panel-w);
   min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   pointer-events: none;
-  transition: transform 0.42s var(--ease), opacity 0.3s ease;
+  transition: transform 0.42s var(--ease), opacity var(--dur-slow) ease;
   scrollbar-width: none;
 }
 
@@ -1837,7 +1907,7 @@ textarea.input { resize: vertical; }
 .explorer-panel > * {
   flex: none;
   pointer-events: auto;
-  animation: fade-up 0.5s var(--ease) both;
+  animation: fade-up var(--dur-enter) var(--ease) both;
 }
 
 .explorer-panel > *:nth-child(2) { animation-delay: 60ms; }
@@ -1855,17 +1925,17 @@ textarea.input { resize: vertical; }
 .panel-handle { display: none; }
 
 /* Keep Leaflet's corner controls clear of the floating panel. */
-.explorer.panel-open .leaflet-right { right: 404px; }
+.explorer.panel-open .leaflet-right { right: calc(var(--panel-w) + var(--hud-inset) + var(--space-2)); }
 .leaflet-right { transition: right 0.42s var(--ease); }
 
 /* Glass treatment shared by every floating HUD card. */
 .explorer-panel .card,
 .explorer-panel .gps-panel,
 .explorer-panel .nav-card {
-  border: 1px solid var(--line-strong);
-  border-radius: 14px;
-  background: var(--glass);
-  box-shadow: var(--shadow-float);
+  border: 1px solid var(--hud-border);
+  border-radius: var(--hud-radius);
+  background: var(--hud-bg);
+  box-shadow: var(--hud-shadow);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
 }
@@ -2147,7 +2217,7 @@ textarea.input { resize: vertical; }
 .explorer-intro {
   position: absolute;
   inset: 0;
-  z-index: 6;
+  z-index: var(--z-scene-overlay);
   display: grid;
   place-items: start center;
   padding-top: 92px;
@@ -2340,14 +2410,14 @@ textarea.input { resize: vertical; }
    Admin layout
    ========================================================================== */
 .admin-shell {
-  --sidebar-w: 260px;
+  --sidebar-w: var(--sidebar-open-w);
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   min-height: 100vh;
-  transition: grid-template-columns 0.32s var(--ease);
+  transition: grid-template-columns var(--dur-slow) var(--ease);
 }
 
-.admin-shell.collapsed { --sidebar-w: 76px; }
+.admin-shell.collapsed { --sidebar-w: var(--sidebar-rail-w); }
 
 .admin-sidebar {
   position: sticky;
@@ -2469,7 +2539,7 @@ textarea.input { resize: vertical; }
   justify-content: flex-start;
 }
 
-.admin-collapse .icon { transition: transform 0.32s var(--ease); }
+.admin-collapse .icon { transition: transform var(--dur-slow) var(--ease); }
 .admin-shell.collapsed .admin-collapse .icon { transform: scaleX(-1); }
 
 /* Collapsed rail: icons only. Labels stay in the DOM for screen readers. */
@@ -2500,7 +2570,7 @@ textarea.input { resize: vertical; }
 .admin-topbar {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: var(--z-admin-topbar);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2823,16 +2893,16 @@ textarea.input { resize: vertical; }
 /* Zoom / reset controls floating over the 3D scene. */
 .scene-controls {
   position: absolute;
-  left: 16px;
+  left: var(--hud-inset);
   top: 50%;
-  z-index: 3;
+  z-index: var(--z-scene-controls);
   display: grid;
   gap: 2px;
   padding: 4px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--hud-border);
   border-radius: 12px;
-  background: var(--glass);
-  box-shadow: var(--shadow-float);
+  background: var(--hud-bg);
+  box-shadow: var(--hud-shadow);
   transform: translateY(-50%);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
@@ -3082,8 +3152,7 @@ textarea.input { resize: vertical; }
    Responsive
    ========================================================================== */
 @media (max-width: 1180px) {
-  .explorer-panel { width: 340px; }
-  .explorer.panel-open .leaflet-right { right: 364px; }
+  :root { --panel-w: 340px; }
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-3 { grid-template-columns: 1fr; }
@@ -3130,7 +3199,7 @@ textarea.input { resize: vertical; }
   .panel-handle {
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: var(--z-scene-hint);
     display: grid;
     justify-items: center;
     gap: 6px;
@@ -3174,10 +3243,10 @@ textarea.input { resize: vertical; }
   .admin-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    z-index: 60;
+    z-index: var(--z-drawer);
     width: min(280px, 85vw);
     transform: translateX(-100%);
-    transition: transform 0.32s var(--ease);
+    transition: transform var(--dur-slow) var(--ease);
     background: var(--bg-2);
   }
 
@@ -3206,7 +3275,7 @@ textarea.input { resize: vertical; }
   .admin-scrim {
     position: fixed;
     inset: 0;
-    z-index: 50;
+    z-index: var(--z-scrim);
     display: block;
     border: 0;
     background: rgba(2, 6, 14, 0.6);
@@ -3264,7 +3333,7 @@ textarea.input { resize: vertical; }
   .user-nav {
     position: fixed;
     inset: auto 0 0 0;
-    z-index: 30;
+    z-index: var(--z-bottom-nav);
     justify-content: space-around;
     margin: 0;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
