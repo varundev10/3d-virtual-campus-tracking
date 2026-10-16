@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { CAMPUS_GEOFENCE, UCER_CENTER } from '../lib/campus.js';
+import { categoryColor } from '../lib/locationCategories.js';
 
 const markerIcon = L.divIcon({
   className: 'campus-marker',
@@ -9,10 +10,34 @@ const markerIcon = L.divIcon({
   iconAnchor: [11, 11],
 });
 
-export default function CampusMap({ locations, currentPosition }) {
+const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[c]));
+
+export default function CampusMap({
+  locations = {},
+  currentPosition,
+  places = [],
+  selectedPlaceId = null,
+  onSelectPlace,
+  route = null,
+  userLabel,
+  onMapClick,
+  pickedPoint = null,
+  followCurrent = true,
+  label = 'OpenStreetMap campus geofence',
+  mode = 'night',
+}) {
   const mapRef = useRef(null);
   const mountRef = useRef(null);
   const markersRef = useRef(new Map());
+  const placesLayerRef = useRef(null);
+  const routeRef = useRef(null);
+  const pickedRef = useRef(null);
+  const onSelectRef = useRef(onSelectPlace);
+  const onMapClickRef = useRef(onMapClick);
+  onSelectRef.current = onSelectPlace;
+  onMapClickRef.current = onMapClick;
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -30,20 +55,77 @@ export default function CampusMap({ locations, currentPosition }) {
     }).addTo(map);
 
     L.polygon(CAMPUS_GEOFENCE, {
-      color: '#e94f37',
+      color: '#22d3ee',
       weight: 2,
-      fillColor: '#e94f37',
-      fillOpacity: 0.08,
+      fillColor: '#22d3ee',
+      fillOpacity: 0.06,
+      interactive: false,
     }).addTo(map);
+
+    placesLayerRef.current = L.layerGroup().addTo(map);
+    map.on('click', (event) => onMapClickRef.current?.(event.latlng));
+
+    // Leaflet must be told when its container is resized (tabs, responsive layouts).
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize());
+    resizeObserver.observe(mountRef.current);
 
     mapRef.current = map;
 
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
       markersRef.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    const layer = placesLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    places.forEach((place) => {
+      const selected = place.id === selectedPlaceId;
+      const marker = L.circleMarker([place.latitude, place.longitude], {
+        radius: selected ? 10 : 7,
+        color: selected ? '#cffafe' : '#0c1424',
+        weight: 2,
+        fillColor: selected ? '#22d3ee' : categoryColor(place.category),
+        fillOpacity: 1,
+      });
+      marker.bindTooltip(escapeHtml(place.name), { direction: 'top', permanent: selected });
+      marker.on('click', () => onSelectRef.current?.(place));
+      marker.addTo(layer);
+    });
+    const selected = places.find((p) => p.id === selectedPlaceId);
+    if (selected && mapRef.current) {
+      mapRef.current.panTo([selected.latitude, selected.longitude], { animate: true });
+    }
+  }, [places, selectedPlaceId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    routeRef.current?.remove();
+    routeRef.current = null;
+    if (route?.from && route?.to) {
+      routeRef.current = L.polyline(
+        [[route.from.latitude, route.from.longitude], [route.to.latitude, route.to.longitude]],
+        { color: '#67e8f9', weight: 3, dashArray: '8 6', interactive: false },
+      ).addTo(map);
+    }
+  }, [route]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    pickedRef.current?.remove();
+    pickedRef.current = null;
+    if (pickedPoint && Number.isFinite(pickedPoint.latitude) && Number.isFinite(pickedPoint.longitude)) {
+      pickedRef.current = L.circleMarker([pickedPoint.latitude, pickedPoint.longitude], {
+        radius: 9, color: '#cffafe', weight: 3, fillColor: '#22d3ee', fillOpacity: 1,
+      }).addTo(map);
+    }
+  }, [pickedPoint]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -61,24 +143,26 @@ export default function CampusMap({ locations, currentPosition }) {
     Object.entries(locations).forEach(([id, ping]) => {
       if (ping.latitude == null || ping.longitude == null) return;
       const latLng = [ping.latitude, ping.longitude];
+      const tooltip = escapeHtml(userLabel?.(id) ?? `User ${id}`);
       let marker = markersRef.current.get(id);
 
       if (!marker) {
         marker = L.marker(latLng, { icon: markerIcon }).addTo(map);
-        marker.bindTooltip(`User ${id}`, { direction: 'top' });
+        marker.bindTooltip(tooltip, { direction: 'top' });
         markersRef.current.set(id, marker);
       } else {
         marker.setLatLng(latLng);
+        marker.setTooltipContent(tooltip);
       }
     });
 
-    if (currentPosition?.latitude && currentPosition?.longitude) {
+    if (followCurrent && currentPosition?.latitude && currentPosition?.longitude) {
       map.panTo([currentPosition.latitude, currentPosition.longitude], {
         animate: true,
         duration: 0.35,
       });
     }
-  }, [currentPosition, locations]);
+  }, [currentPosition, locations, userLabel, followCurrent]);
 
-  return <div ref={mountRef} className="campus-map" aria-label="OpenStreetMap campus geofence" />;
+  return <div ref={mountRef} className={`campus-map ${mode === 'day' ? 'is-day' : ''}`} role="region" aria-label={label} />;
 }

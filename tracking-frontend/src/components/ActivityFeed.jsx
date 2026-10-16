@@ -1,14 +1,20 @@
-export default function ActivityFeed({ activity, attendance }) {
+export default function ActivityFeed({
+  activity,
+  attendance,
+  title = 'Live Activity',
+  subtitle = 'Backend events, GPS state, and attendance updates',
+}) {
   return (
     <section className="feed-panel">
       <div className="panel-heading">
         <div>
-          <h2>Live Activity</h2>
-          <p>Backend events, GPS state, and attendance updates</p>
+          <h2>{title}</h2>
+          <p>{subtitle}</p>
         </div>
       </div>
 
-      <div className="feed-list">
+      <div className="feed-list" aria-live="polite">
+        {activity.length === 0 && <p className="empty-copy">No events yet in this session.</p>}
         {activity.map((item) => (
           <article key={item.id} className="feed-item">
             <span className="feed-type">{item.type}</span>
@@ -18,19 +24,21 @@ export default function ActivityFeed({ activity, attendance }) {
         ))}
       </div>
 
-      <div className="attendance-list">
-        <h3>Recent Attendance</h3>
-        {attendance.length === 0 ? (
-          <p className="empty-copy">No attendance rows loaded for the selected user.</p>
-        ) : (
-          attendance.slice(0, 5).map((record) => (
-            <div key={record.id ?? `${record.userId}-${record.checkTime}`} className="attendance-row">
-              <strong>{record.classroomId}</strong>
-              <span>{record.status}</span>
-            </div>
-          ))
-        )}
-      </div>
+      {attendance && (
+        <div className="attendance-list">
+          <h3>Recent Attendance</h3>
+          {attendance.length === 0 ? (
+            <p className="empty-copy">No attendance rows loaded for the selected user.</p>
+          ) : (
+            attendance.slice(0, 5).map((record) => (
+              <div key={record.id ?? `${record.userId}-${record.checkTime}`} className="attendance-row">
+                <strong>{record.classroomId}</strong>
+                <span>{record.status}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </section>
   );
 }
