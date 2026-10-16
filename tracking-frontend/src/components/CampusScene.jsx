@@ -3,99 +3,37 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { CAMPUS_ZONES, locationToScenePoint } from '../lib/campus.js';
 import { CAMPUS_MODEL_TRANSFORM, getModelFormat } from '../lib/modelConfig.js';
+import { QUALITY_PRESETS, useQuality } from '../lib/quality.js';
+import { createAssets } from '../scene/assets.js';
+import { applyEnvironment } from '../scene/environment.js';
+import { createSky } from '../scene/sky.js';
+import { createCloudShadows, createParticles } from '../scene/ambient.js';
+import { createDetailKit, createStreetLights } from '../scene/details.js';
+import { createLabelSprite, restyleLabel, updateLabelDistance } from '../scene/labels.js';
 import Icon from './ui/Icon.jsx';
 
 const ACCENT = '#22d3ee';
-
-// Scene environment per day/night mode. Applied to existing objects in place (see applyEnvironment)
-// so switching never rebuilds the renderer, camera or controls.
-const ENVIRONMENTS = {
-  night: {
-    sky: '#070d1a', fogNear: 120, fogFar: 260,
-    ground: '#0d1a2c', road: '#1a2a40', roof: '#1e2c44', gridMajor: '#1d6b86', gridMinor: '#16324d', gridOpacity: 0.55,
-    hemiSky: '#d6e8ff', hemiGround: '#0a1424', hemi: 2.4, sunColor: '#e6f0ff', sun: 2.8, rim: 0.9,
-  },
-  day: {
-    sky: '#b9d3ea', fogNear: 160, fogFar: 320,
-    ground: '#9fb7a4', road: '#5c6b78', roof: '#e9eef5', gridMajor: '#6f8f86', gridMinor: '#8aa598', gridOpacity: 0.35,
-    hemiSky: '#ffffff', hemiGround: '#7b8f86', hemi: 2.6, sunColor: '#fff3d6', sun: 3.2, rim: 0.25,
-  },
-};
-
-function applyEnvironment(env, zoneObjects, mode) {
-  const palette = ENVIRONMENTS[mode] ?? ENVIRONMENTS.night;
-  env.scene.background.set(palette.sky);
-  env.scene.fog.color.set(palette.sky);
-  env.scene.fog.near = palette.fogNear;
-  env.scene.fog.far = palette.fogFar;
-  env.ground.material.color.set(palette.ground);
-  env.road.color.set(palette.road);
-  // GridHelper stores its two line colors per vertex; rebuild just that color buffer.
-  const colors = env.grid.geometry.getAttribute('color');
-  const major = new THREE.Color(palette.gridMajor);
-  const minor = new THREE.Color(palette.gridMinor);
-  // Four vertices per grid line; the middle line uses the "major" color, as in GridHelper itself.
-  const lines = colors.count / 4;
-  const center = (lines - 1) / 2;
-  for (let line = 0; line < lines; line += 1) {
-    const c = line === center ? major : minor;
-    for (let k = 0; k < 4; k += 1) colors.setXYZ(line * 4 + k, c.r, c.g, c.b);
-  }
-  colors.needsUpdate = true;
-  env.grid.material.opacity = palette.gridOpacity;
-  env.hemi.color.set(palette.hemiSky);
-  env.hemi.groundColor.set(palette.hemiGround);
-  env.hemi.intensity = palette.hemi;
-  env.sun.color.set(palette.sunColor);
-  env.sun.intensity = palette.sun;
-  env.rim.intensity = palette.rim;
-  zoneObjects.forEach(({ roof }) => roof.material.color.set(palette.roof));
-}
 const START_CAMERA = new THREE.Vector3(78, 72, 86);
-
-// Glass "HUD tag" label: rounded dark plate with a cyan hairline; solid cyan when selected.
-function createLabelTexture(text, selected = false) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 128;
-  const context = canvas.getContext('2d');
-  const inset = 6;
-  const w = canvas.width - inset * 2;
-  const h = canvas.height - inset * 2;
-  context.beginPath();
-  if (context.roundRect) context.roundRect(inset, inset, w, h, 26);
-  else context.rect(inset, inset, w, h);
-  context.fillStyle = selected ? 'rgba(34, 211, 238, 0.96)' : 'rgba(7, 13, 26, 0.84)';
-  context.fill();
-  context.lineWidth = 3;
-  context.strokeStyle = selected ? 'rgba(207, 250, 254, 0.95)' : 'rgba(34, 211, 238, 0.55)';
-  context.stroke();
-  context.fillStyle = selected ? '#031018' : '#e8f0ff';
-  context.font = '600 46px "Space Grotesk", Inter, system-ui, sans-serif';
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
-  context.fillText(text, canvas.width / 2, canvas.height / 2 + 2, w - 40);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
-  return texture;
-}
+const LABEL_HEIGHT_ABOVE_ROOF = 9;
 
 // Builds one placeholder building (into `buildings`) and its label (into `labels`, which stays
 // visible over a loaded Metashape model so locations remain selectable).
-function addBuilding(buildings, labels, zone, height, size) {
+function addBuilding(buildings, labels, kit, zone, index, mode) {
+  const height = 9 + (index % 3) * 3;
+  const size = { width: 16 + (index % 2) * 4, depth: 13 + (index % 3) * 3 };
+
   const group = new THREE.Group();
   group.position.set(zone.x, 0, zone.z);
 
-  const geometry = new THREE.BoxGeometry(size.width, height, size.depth);
-  const material = new THREE.MeshStandardMaterial({
-    color: zone.color,
-    roughness: 0.42,
-    metalness: 0.18,
-  });
-  const building = new THREE.Mesh(geometry, material);
+  // Category colors are tuned for the UI; soften them slightly so large painted walls are not harsh.
+  const wallColor = new THREE.Color(zone.color).offsetHSL(0, -0.12, 0.02);
+  const building = new THREE.Mesh(
+    new THREE.BoxGeometry(size.width, height, size.depth),
+    new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.55, metalness: 0.06 }),
+  );
   building.position.y = height / 2;
   building.castShadow = true;
   building.receiveShadow = true;
@@ -104,44 +42,39 @@ function addBuilding(buildings, labels, zone, height, size) {
 
   const roof = new THREE.Mesh(
     new THREE.BoxGeometry(size.width + 1.5, 1.4, size.depth + 1.5),
-    new THREE.MeshStandardMaterial({ color: '#1e2c44', roughness: 0.45, metalness: 0.3 }),
+    new THREE.MeshStandardMaterial({ color: '#1e2c44', roughness: 0.35, metalness: 0.3 }),
   );
   roof.position.y = height + 1;
   roof.castShadow = true;
   roof.userData.zoneId = zone.id;
   group.add(roof);
 
+  const details = kit.addBuilding(group, zone, { ...size, height }, index);
   buildings.add(group);
 
-  const label = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: createLabelTexture(zone.id),
-      transparent: true,
-      depthTest: false,
-    }),
-  );
-  label.scale.set(18, 4.5, 1);
-  label.position.set(zone.x, height + 6, zone.z);
-  label.userData.zoneId = zone.id;
-  label.renderOrder = 10;
+  const label = createLabelSprite(zone, mode);
+  label.position.set(zone.x, height + LABEL_HEIGHT_ABOVE_ROOF, zone.z);
   labels.add(label);
 
-  return { building, roof, label, height };
+  return { building, roof, label, height, group, size, ...details };
 }
 
 function disposeObject(object) {
   object.traverse((child) => {
-    if (!child.isMesh && !child.isSprite && !child.isLine) return;
-    child.geometry?.dispose();
+    if (!child.isMesh && !child.isSprite && !child.isLine && !child.isPoints) return;
+    if (child.geometry && !child.geometry.userData.shared) child.geometry.dispose();
 
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
-      if (!material) return;
+      // Textures, geometry and materials flagged `shared` belong to the scene and are freed at unmount.
+      if (!material || material.userData.shared) return;
       Object.values(material).forEach((value) => {
-        if (value?.isTexture) value.dispose();
+        if (value?.isTexture && !value.userData.shared) value.dispose();
       });
       material.dispose();
     });
+    // InstancedMesh releases its per-instance buffers here.
+    child.dispose?.();
   });
 }
 
@@ -175,10 +108,12 @@ function createPlaceholderCampus() {
   const roadMaterial = new THREE.MeshStandardMaterial({ color: '#1a2a40', roughness: 0.7, metalness: 0.1 });
   const mainRoad = new THREE.Mesh(new THREE.BoxGeometry(150, 0.18, 7), roadMaterial);
   mainRoad.position.set(0, 0.12, 0);
+  mainRoad.receiveShadow = true;
   group.add(mainRoad);
 
   const crossRoad = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 95), roadMaterial);
   crossRoad.position.set(6, 0.14, 0);
+  crossRoad.receiveShadow = true;
   group.add(crossRoad);
 
   const buildings = new THREE.Group();
@@ -224,6 +159,7 @@ function prepareCampusModel(object) {
   });
 }
 
+// A user's live position: a bobbing pin with a pulsing ring (animated in the render loop).
 function createPin(color = ACCENT) {
   const group = new THREE.Group();
   const stem = new THREE.Mesh(
@@ -240,12 +176,14 @@ function createPin(color = ACCENT) {
 
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(2.4, 0.08, 10, 48),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75 }),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75, toneMapped: false }),
   );
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 0.12;
 
   group.add(stem, head, ring);
+  group.userData.head = head;
+  group.userData.ring = ring;
   return group;
 }
 
@@ -262,6 +200,7 @@ export default function CampusScene({
   showControls = true,
   mode = 'night',
 }) {
+  const [quality] = useQuality();
   const mountRef = useRef(null);
   const markersRef = useRef(new Map());
   const sceneRef = useRef(null);
@@ -269,6 +208,7 @@ export default function CampusScene({
   const buildingsRef = useRef(null);
   const labelsRef = useRef(null);
   const zoneObjectsRef = useRef(new Map());
+  const animatedRef = useRef([]);
   const modelRef = useRef(null);
   const routeRef = useRef(null);
   const focusRef = useRef(null);
@@ -276,24 +216,33 @@ export default function CampusScene({
   const viewRef = useRef(null);
   const envRef = useRef(null);
   const modeRef = useRef(mode);
-  modeRef.current = mode;
+  const qualityRef = useRef(quality);
   const onSelectRef = useRef(onSelectZone);
-  onSelectRef.current = onSelectZone;
+
+  // Keep the "latest value" refs current. Declared first so they are set before the effects below run.
+  useEffect(() => {
+    modeRef.current = mode;
+    qualityRef.current = quality;
+    onSelectRef.current = onSelectZone;
+  });
 
   useEffect(() => {
     const mount = mountRef.current;
+    const markers = markersRef.current;
+    const zoneObjects = zoneObjectsRef.current;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#070d1a');
-    scene.fog = new THREE.Fog('#070d1a', 120, 260);
+    scene.fog = new THREE.Fog('#070d1a', 120, 340);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.5, 1000);
     camera.position.copy(START_CAMERA);
     camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // Neutral tone mapping rolls highlights off without shifting hues, which keeps a textured Metashape
+    // model true to its colors.
+    renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
@@ -311,37 +260,109 @@ export default function CampusScene({
     });
     viewRef.current = { camera, controls };
 
-    // Cool "night operations" lighting, still bright enough for a textured Metashape model.
-    const ambient = new THREE.HemisphereLight('#d6e8ff', '#0a1424', 2.4);
-    scene.add(ambient);
+    // Lights. Colors and intensities are set per day / night mode by applyEnvironment.
+    const hemi = new THREE.HemisphereLight('#d6e8ff', '#0a1424', 1.25);
+    scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight('#e6f0ff', 2.8);
+    const sun = new THREE.DirectionalLight('#e6f0ff', 1.7);
     sun.position.set(40, 90, 35);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -100;
     sun.shadow.camera.right = 100;
     sun.shadow.camera.top = 100;
     sun.shadow.camera.bottom = -100;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 400;
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.5;
     scene.add(sun);
 
     const rim = new THREE.DirectionalLight('#67e8f9', 0.9);
     rim.position.set(-60, 40, -70);
     scene.add(rim);
 
+    // Atmosphere and ambient life.
+    const assets = createAssets();
+    const sky = createSky();
+    scene.add(sky.group);
+
+    // Land that continues past the campus plane and fades into the horizon through the fog.
+    const farGround = new THREE.Mesh(
+      new THREE.CircleGeometry(420, 64).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: '#07101d' }),
+    );
+    farGround.position.y = -0.2;
+    farGround.renderOrder = 5; // after the campus plane, so the GPU skips the pixels it already covers
+    farGround.raycast = () => {};
+    scene.add(farGround);
+
+    const particles = createParticles();
+    scene.add(particles.points);
+    const clouds = createCloudShadows(assets);
+    scene.add(clouds.group);
+    const kit = createDetailKit(assets);
+
     const placeholder = createPlaceholderCampus();
     placeholderRef.current = placeholder.group;
     buildingsRef.current = placeholder.buildings;
-    envRef.current = {
-      scene, ground: placeholder.ground, grid: placeholder.grid, road: placeholder.road, hemi: ambient, sun, rim,
-    };
-    applyEnvironment(envRef.current, zoneObjectsRef.current, modeRef.current);
     scene.add(placeholder.group);
 
     const labels = new THREE.Group();
     labels.name = 'location-labels';
     labelsRef.current = labels;
     scene.add(labels);
+
+    const ctx = {
+      scene,
+      sky,
+      farGround,
+      ground: placeholder.ground,
+      grid: placeholder.grid,
+      road: placeholder.road,
+      hemi,
+      sun,
+      rim,
+      particles,
+      clouds,
+      kit,
+      assets,
+      streetLights: null,
+      zoneObjects,
+      applyQuality: null,
+    };
+    envRef.current = ctx;
+
+    // Quality presets switch optional effects on and off in place; nothing is rebuilt.
+    let pixelRatio = 1;
+    let envTexture = null;
+    ctx.applyQuality = (preset) => {
+      pixelRatio = Math.min(window.devicePixelRatio || 1, preset.pixelRatio);
+      renderer.setPixelRatio(pixelRatio);
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+      sun.castShadow = preset.shadows;
+      if (sun.shadow.mapSize.x !== preset.shadowMapSize) {
+        sun.shadow.mapSize.set(preset.shadowMapSize, preset.shadowMapSize);
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+      }
+      particles.setCount(preset.particles);
+      sky.setStarCount(preset.stars);
+      clouds.setEnabled(preset.cloudShadows);
+      if (preset.environmentMap) {
+        if (!envTexture) {
+          const generator = new THREE.PMREMGenerator(renderer);
+          const room = new RoomEnvironment();
+          envTexture = generator.fromScene(room, 0.04).texture;
+          room.dispose?.();
+          generator.dispose();
+        }
+        scene.environment = envTexture;
+      } else {
+        scene.environment = null;
+      }
+    };
+    applyEnvironment(ctx, modeRef.current);
+    ctx.applyQuality(QUALITY_PRESETS[qualityRef.current]);
 
     // Click (not drag) on a building or label selects that location.
     const raycaster = new THREE.Raycaster();
@@ -373,15 +394,48 @@ export default function CampusScene({
     renderer.domElement.addEventListener('pointerup', handleUp);
     renderer.domElement.addEventListener('pointermove', handleMove);
 
+    // Reduced motion: pins and particles stay put, clouds stop drifting.
+    const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    let motion = motionQuery?.matches ? 0 : 1;
+    const handleMotion = (event) => {
+      motion = event.matches ? 0 : 1;
+    };
+    motionQuery?.addEventListener('change', handleMotion);
+
+    // Label textures drawn before the web font finished loading used a fallback face; redraw them once it is in.
+    let disposed = false;
+    document.fonts?.load('600 46px "Space Grotesk"').then(() => {
+      if (disposed) return;
+      zoneObjects.forEach((entry) => restyleLabel(entry.label, entry.zone, { mode: modeRef.current, selected: entry.selected }));
+    }).catch(() => {});
+
     let frame;
     const clock = new THREE.Clock();
     const animate = () => {
       frame = requestAnimationFrame(animate);
-      const elapsed = clock.getElapsedTime();
-      markersRef.current.forEach((marker) => {
-        marker.position.y = Math.sin(elapsed * 2.4 + marker.position.x) * 0.35;
-        marker.rotation.y += 0.012;
+      const delta = Math.min(clock.getDelta(), 0.1);
+      const elapsed = clock.elapsedTime;
+
+      markers.forEach((marker) => {
+        const { head, ring } = marker.userData;
+        marker.position.y = Math.sin(elapsed * 2.4 + marker.position.x) * 0.35 * motion;
+        marker.rotation.y += 0.72 * delta * motion;
+        const k = motion ? (((elapsed * 0.7 + marker.position.x * 0.05) % 1) + 1) % 1 : 0.3;
+        ring.scale.setScalar(0.85 + k * 0.9);
+        ring.material.opacity = (1 - k) * 0.75;
+        head.material.emissiveIntensity = 0.6 + 0.25 * Math.sin(elapsed * 3 + marker.position.x) * motion;
       });
+
+      kit.animatePins(animatedRef.current, elapsed, motion);
+      animatedRef.current.forEach((entry) => {
+        updateLabelDistance(entry.label, entry.selected, camera.position.distanceTo(entry.label.position));
+      });
+
+      const effectsTime = motion ? elapsed : 0;
+      particles.update(effectsTime, pixelRatio);
+      sky.update(camera, effectsTime, pixelRatio);
+      if (motion) clouds.update(delta);
+
       if (focusRef.current) {
         controls.target.lerp(focusRef.current, 0.08);
         if (controls.target.distanceTo(focusRef.current) < 0.1) focusRef.current = null;
@@ -405,49 +459,81 @@ export default function CampusScene({
     resizeObserver.observe(mount);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
+      motionQuery?.removeEventListener('change', handleMotion);
       renderer.domElement.removeEventListener('pointerdown', handleDown);
       renderer.domElement.removeEventListener('pointerup', handleUp);
       renderer.domElement.removeEventListener('pointermove', handleMove);
       controls.dispose();
       viewRef.current = null;
       envRef.current = null;
-      renderer.dispose();
-      mount.removeChild(renderer.domElement);
       if (modelRef.current) disposeObject(modelRef.current);
-      if (placeholderRef.current) disposeObject(placeholderRef.current);
+      disposeObject(placeholder.group);
       disposeObject(labels);
-      markersRef.current.clear();
-      zoneObjectsRef.current.clear();
+      ctx.streetLights?.dispose();
+      sky.dispose();
+      particles.dispose();
+      clouds.dispose();
+      kit.dispose();
+      assets.dispose();
+      farGround.geometry.dispose();
+      farGround.material.dispose();
+      envTexture?.dispose();
+      sun.shadow.map?.dispose();
+      renderer.dispose();
+      // Release the GPU context right away; navigating between pages would otherwise pile up live contexts.
+      renderer.forceContextLoss();
+      mount.removeChild(renderer.domElement);
+      markers.clear();
+      zoneObjects.clear();
+      animatedRef.current = [];
     };
   }, []);
 
-  // Rebuild buildings and labels whenever the location list changes.
+  // Rebuild buildings, labels and street lights whenever the location list changes.
   useEffect(() => {
+    const ctx = envRef.current;
     const buildings = buildingsRef.current;
     const labels = labelsRef.current;
-    if (!buildings || !labels) return;
+    if (!ctx || !buildings || !labels) return;
 
     clearGroup(buildings);
     clearGroup(labels);
     zoneObjectsRef.current.clear();
+    if (ctx.streetLights) {
+      placeholderRef.current.remove(ctx.streetLights.group);
+      ctx.streetLights.dispose();
+      ctx.streetLights = null;
+    }
 
+    const footprints = [];
     zones.forEach((zone, index) => {
-      const objects = addBuilding(buildings, labels, zone, 9 + (index % 3) * 3, {
-        width: 16 + (index % 2) * 4,
-        depth: 13 + (index % 3) * 3,
-      });
+      const objects = addBuilding(buildings, labels, ctx.kit, zone, index, modeRef.current);
       // Built unselected; the highlight effect below restyles the selected zone, if any.
       zoneObjectsRef.current.set(zone.id, { ...objects, zone, selected: false });
+      footprints.push({ x: zone.x, z: zone.z, ...objects.size });
     });
-    if (envRef.current) applyEnvironment(envRef.current, zoneObjectsRef.current, modeRef.current);
+    ctx.streetLights = createStreetLights(ctx.assets, footprints);
+    placeholderRef.current.add(ctx.streetLights.group);
+    animatedRef.current = [...zoneObjectsRef.current.values()];
+    applyEnvironment(ctx, modeRef.current);
   }, [zones]);
 
   // Day / night: restyle in place. Camera, controls and selection are untouched.
   useEffect(() => {
-    if (envRef.current) applyEnvironment(envRef.current, zoneObjectsRef.current, mode);
+    const ctx = envRef.current;
+    if (!ctx) return;
+    applyEnvironment(ctx, mode);
+    zoneObjectsRef.current.forEach((entry) => {
+      restyleLabel(entry.label, entry.zone, { mode, selected: entry.selected });
+    });
   }, [mode]);
+
+  useEffect(() => {
+    envRef.current?.applyQuality(QUALITY_PRESETS[quality]);
+  }, [quality]);
 
   // Highlight and focus the selected location. Only zones whose highlight state actually changes get a
   // new label texture (the old and new selection), not every label on each click.
@@ -459,10 +545,7 @@ export default function CampusScene({
       entry.selected = selected;
       building.material.emissive = new THREE.Color(selected ? ACCENT : '#000000');
       building.material.emissiveIntensity = selected ? 0.55 : 0;
-      sprite.material.map?.dispose();
-      sprite.material.map = createLabelTexture(zone.id, selected);
-      sprite.material.needsUpdate = true;
-      sprite.scale.set(selected ? 22 : 18, selected ? 5.5 : 4.5, 1);
+      restyleLabel(sprite, zone, { mode: modeRef.current, selected });
     });
     const target = zoneObjectsRef.current.get(selectedZoneId);
     if (target) focusRef.current = new THREE.Vector3(target.zone.x, 0, target.zone.z);
