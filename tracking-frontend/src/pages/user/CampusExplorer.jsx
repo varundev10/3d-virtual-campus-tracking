@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CampusScene from '../../components/CampusScene.jsx';
 import CampusMap from '../../components/CampusMap.jsx';
+import CinematicIntro from '../../components/CinematicIntro.jsx';
 import GpsStatusPanel from '../../components/GpsStatusPanel.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/States.jsx';
@@ -8,6 +9,10 @@ import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.jsx';
 import { useAsync } from '../../lib/useAsync.js';
 import { useCampusGeolocation } from '../../lib/useCampusGeolocation.js';
+import { useCampusIntro } from '../../lib/useCampusIntro.js';
+import { hasPlayedIntro } from '../../lib/introSession.js';
+import { prefersReducedMotion } from '../../lib/quality.js';
+import { isWebGLAvailable } from '../../scene/webgl.js';
 import { useRouter } from '../../lib/router.jsx';
 import { categoryColor, categoryLabel, locationsToZones, matchesSearch } from '../../lib/locationCategories.js';
 import {
@@ -18,61 +23,6 @@ import { DEFAULT_CAMPUS_MODEL_URL } from '../../lib/modelConfig.js';
 import { useSceneMode } from '../../lib/sceneMode.js';
 
 const ARRIVAL_RADIUS_M = 20;
-const INTRO_KEY = 'ucer.explorerIntroSeen';
-
-// First-visit orientation card. It never blocks the scene: the overlay ignores the pointer, it closes on
-// Skip, Escape, the first interaction with the scene, or after a few seconds, and it is shown once per device.
-function ExplorerIntro() {
-  const [show, setShow] = useState(() => {
-    try {
-      return window.localStorage.getItem(INTRO_KEY) !== '1';
-    } catch {
-      return false;
-    }
-  });
-  const cardRef = useRef(null);
-
-  const dismiss = useCallback(() => {
-    setShow(false);
-    try {
-      window.localStorage.setItem(INTRO_KEY, '1');
-    } catch {
-      // Storage unavailable; the intro simply shows again next visit.
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!show) return undefined;
-    const timer = window.setTimeout(dismiss, 7000);
-    const onKey = (event) => { if (event.key === 'Escape') dismiss(); };
-    const onPointer = (event) => { if (!cardRef.current?.contains(event.target)) dismiss(); };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('pointerdown', onPointer);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('pointerdown', onPointer);
-    };
-  }, [show, dismiss]);
-
-  if (!show) return null;
-  const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-  return (
-    <div className="explorer-intro">
-      <section className="intro-card" ref={cardRef} aria-labelledby="intro-title">
-        <p className="eyebrow">Campus digital twin</p>
-        <h2 id="intro-title">Welcome to the 3D explorer</h2>
-        <ul>
-          <li><Icon name="cube" size={16} /> Drag to orbit, scroll or pinch to zoom</li>
-          <li><Icon name="search" size={16} /> Press <kbd>/</kbd> or <kbd>{mac ? '⌘' : 'Ctrl'} K</kbd> to find a place</li>
-          <li><Icon name="sun" size={16} /> Switch day / night lighting from the toolbar</li>
-        </ul>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={dismiss}>Skip intro</button>
-        <span className="intro-timer" aria-hidden="true" />
-      </section>
-    </div>
-  );
-}
 
 function NavigationCard({ destination, position, geo, onEnd }) {
   if (!position) {
@@ -117,8 +67,26 @@ export default function CampusExplorer() {
   const [selectedCode, setSelectedCode] = useState(query.get('location'));
   const [destinationCode, setDestinationCode] = useState(null);
   const [share, setShare] = useState(false);
-  const [view, setView] = useState('3d');
+  // Without WebGL there is no 3D view: start on the map (the place list beside it works either way).
+  const [webgl] = useState(isWebGLAvailable);
+  const [view, setView] = useState(webgl ? '3d' : 'map');
   const [modelStatus, setModelStatus] = useState({ state: 'loading', label: 'Loading model' });
+  // The cinematic intro plays once per session, only with WebGL, and not when the visit is a deep link
+  // (a place opened from the command palette, a search shortcut or a category link).
+  const [introEnabled] = useState(() => (
+    webgl && !hasPlayedIntro() && !['location', 'focus', 'category'].some((key) => query.has(key))
+  ));
+  const [reducedMotion] = useState(prefersReducedMotion);
+  const [sceneReady, setSceneReady] = useState(false);
+  const handleSceneReady = useCallback(() => setSceneReady(true), []);
+  const intro = useCampusIntro({
+    enabled: introEnabled, locations, model: modelStatus, sceneReady, reducedMotion,
+  });
+  const endIntro = (finish) => () => {
+    finish();
+    // The overlay holds focus; hand it back to the page.
+    document.getElementById('main')?.focus({ preventScroll: true });
+  };
   // The HUD column starts open on desktop; on small screens it starts as a collapsed bottom sheet
   // unless the page was opened to show a specific location or the search box.
   const [panelOpen, setPanelOpen] = useState(() => (
@@ -191,9 +159,9 @@ export default function CampusExplorer() {
   );
 
   return (
-    <div className={`explorer ${panelOpen ? 'panel-open' : 'panel-closed'}`}>
+    <div className={`explorer ${panelOpen ? 'panel-open' : 'panel-closed'} ${intro.active ? 'intro-active' : ''}`}>
       <section className="explorer-viewer card" aria-label="Campus view">
-        <div className="viewer-toolbar">
+        <div className="viewer-toolbar" inert={intro.active}>
           <div className="segmented-control" role="tablist" aria-label="View">
             <button type="button" role="tab" aria-selected={view === '3d'} className={view === '3d' ? 'active' : ''} onClick={() => setView('3d')}>
               <Icon name="cube" size={16} /> 3D campus
@@ -237,9 +205,13 @@ export default function CampusExplorer() {
               onSelectZone={select}
               route={route}
               mode={sceneMode}
+              intro={intro.sceneIntro}
+              onReady={handleSceneReady}
+              onIntroEnd={intro.onSceneIntroEnd}
+              showControls={!intro.active}
               label="Interactive 3D campus. Drag to rotate, scroll to zoom, click a building label to select it."
             />
-            <p className="viewer-hint"><Icon name="compass" size={14} /> Drag to rotate · scroll or pinch to zoom · click a label to select</p>
+            {webgl && <p className="viewer-hint"><Icon name="compass" size={14} /> Drag to rotate · scroll or pinch to zoom · click a label to select</p>}
           </div>
           <div className={`viewer-layer ${view === 'map' ? 'visible' : ''}`}>
             <CampusMap
@@ -254,11 +226,20 @@ export default function CampusExplorer() {
               mode={sceneMode}
             />
           </div>
-          <ExplorerIntro />
+          {intro.active && (
+            <CinematicIntro
+              phase={intro.phase}
+              steps={intro.steps}
+              percent={intro.percent}
+              slow={intro.slow}
+              onSkip={endIntro(intro.skip)}
+              onEnter={endIntro(intro.enter)}
+            />
+          )}
         </div>
       </section>
 
-      <aside className="explorer-panel" id="explorer-panel" aria-label="Campus guide">
+      <aside className="explorer-panel" id="explorer-panel" aria-label="Campus guide" inert={intro.active}>
         <button type="button" className="panel-handle" onClick={() => setPanelOpen((v) => !v)} aria-expanded={panelOpen} aria-controls="explorer-panel">
           {panelOpen ? 'Hide guide' : (destination ? `Navigating to ${destination.name}` : selected ? selected.name : 'Find a place & your location')}
         </button>

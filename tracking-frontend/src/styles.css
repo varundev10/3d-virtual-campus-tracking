@@ -2213,51 +2213,197 @@ textarea.input { resize: vertical; }
   white-space: nowrap;
 }
 
-/* First-visit intro: floats over the scene but never captures the pointer outside its card. */
-.explorer-intro {
+/* ==========================================================================
+   Cinematic intro. Covers the 3D stage only, so the site header and navigation stay usable.
+   Animates opacity and transform only.
+   ========================================================================== */
+.cine {
   position: absolute;
   inset: 0;
   z-index: var(--z-scene-overlay);
   display: grid;
-  place-items: start center;
-  padding-top: 92px;
+  place-items: center;
+  /* Once the backdrop has faded, the live scene underneath must stay reachable. */
   pointer-events: none;
 }
 
-.intro-card {
+.cine[data-phase="loading"],
+.cine[data-phase="title"] { pointer-events: auto; }
+
+.cine-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 42%, #0a1628 0%, #03060d 72%);
+  opacity: 1;
+  transition: opacity 1400ms var(--ease-in-out);
+}
+
+.cine[data-phase="reveal"] .cine-backdrop,
+.cine[data-phase="ready"] .cine-backdrop { opacity: 0; }
+
+.cine-loading {
   position: relative;
   display: grid;
-  gap: 10px;
-  width: min(380px, calc(100% - 32px));
-  padding: 20px;
-  overflow: hidden;
-  border: 1px solid var(--accent-line);
-  border-radius: var(--radius-lg);
-  background: var(--glass-strong);
-  box-shadow: var(--shadow-float), 0 0 40px rgba(34, 211, 238, 0.12);
-  pointer-events: auto;
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  animation: scale-in 0.5s var(--ease) 0.3s both;
+  justify-items: center;
+  gap: var(--space-3);
+  width: min(420px, calc(100% - var(--space-10)));
+  animation: fade-in var(--dur-enter) var(--ease) both;
 }
 
-.intro-card h2 { font-size: 1.15rem; }
+.cine-eyebrow {
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
 
-.intro-card ul {
+.cine-bar {
+  width: 100%;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.cine-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 12px var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-slow) var(--ease);
+}
+
+.cine-percent {
+  color: var(--accent-2);
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.cine-steps {
   display: grid;
-  gap: 8px;
-  margin: 2px 0 6px;
+  gap: 6px;
+  width: 100%;
+  margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
-  color: var(--ink-2);
-  font-size: 0.86rem;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
 }
 
-.intro-card li { display: flex; align-items: center; gap: 10px; }
-.intro-card li .icon { flex: none; color: var(--accent); }
-.intro-card .btn { justify-self: start; }
+.cine-steps li {
+  display: grid;
+  grid-template-columns: 18px auto 1fr;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--ink-muted);
+}
 
-.intro-card kbd,
+.cine-steps li[data-state="done"] { color: var(--ink-2); }
+.cine-steps li[data-state="failed"] { color: var(--warning); }
+.cine-step-mark { display: grid; place-items: center; color: var(--good); }
+.cine-steps li[data-state="failed"] .cine-step-mark { color: var(--warning); }
+
+.cine-steps li[data-state="active"] .cine-step-mark::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent);
+  animation: pulse-dot 1.4s ease-out infinite;
+}
+
+.cine-step-state {
+  overflow: hidden;
+  color: var(--ink-faint);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cine-slow {
+  margin-top: var(--space-2);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  text-align: center;
+  animation: fade-up var(--dur-enter) var(--ease) both;
+}
+
+.cine-title {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  text-align: center;
+  animation: cine-rise 1100ms var(--ease) both;
+}
+
+.cine[data-phase="reveal"] .cine-title { animation: cine-away 1600ms var(--ease-in-out) 500ms both; }
+
+.cine-title-main {
+  padding-left: 0.28em; /* balances the trailing letter-spacing so the word looks centred */
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: var(--text-hero);
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  line-height: 1;
+  text-shadow: 0 0 48px rgba(34, 211, 238, 0.35);
+}
+
+.cine-title-sub {
+  padding-left: 0.5em;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: clamp(0.8rem, 2vw, 1.15rem);
+  letter-spacing: 0.5em;
+}
+
+@keyframes cine-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes cine-away {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-26px) scale(1.04); }
+}
+
+.cine-ready {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-5) var(--space-8);
+  background: linear-gradient(0deg, rgba(3, 6, 13, 0.85), rgba(3, 6, 13, 0));
+  text-align: center;
+  animation: fade-up var(--dur-enter) var(--ease) both;
+}
+
+.cine-ready h2 { font-size: var(--text-xl); }
+.cine-ready p { max-width: 46ch; color: var(--ink-2); font-size: var(--text-md); text-wrap: balance; }
+
+.cine-enter {
+  min-height: 46px;
+  padding: 0 var(--space-6);
+  font-size: var(--text-base);
+  pointer-events: auto;
+}
+
+.cine-skip {
+  position: absolute;
+  right: var(--hud-inset);
+  bottom: var(--hud-inset);
+  pointer-events: auto;
+}
+
+.cine kbd,
 .cmdk kbd,
 .cmdk-trigger kbd {
   padding: 1px 6px;
@@ -2269,22 +2415,35 @@ textarea.input { resize: vertical; }
   font-size: 0.7rem;
 }
 
-/* Thin bar that drains over the intro's auto-dismiss window. */
-.intro-timer {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--violet));
-  transform-origin: left;
-  animation: intro-drain 6.7s linear 0.3s both;
+.cine-skip kbd { margin-left: var(--space-1); }
+
+/* While the intro plays, the HUD is hidden (and inert in the markup). Removing the class lets the panels'
+   entrance animations run, so the interface arrives after the reveal. */
+.explorer.intro-active .viewer-toolbar,
+.explorer.intro-active .explorer-panel > *,
+.explorer.intro-active .viewer-hint {
+  visibility: hidden;
+  opacity: 0;
+  animation: none;
 }
 
-@keyframes intro-drain {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
+/* Shown in place of the canvas when WebGL cannot run, or while its graphics context is lost. */
+.scene-unavailable {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-scene-hint);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: radial-gradient(ellipse at 50% 40%, #0c1628, #050a14 75%);
+  color: var(--ink-2);
+  text-align: center;
 }
+
+.scene-unavailable h3 { color: var(--ink); font-size: var(--text-lg); }
+.scene-unavailable p { max-width: 44ch; font-size: var(--text-md); }
 
 /* Command palette */
 .header-tools {
@@ -3328,7 +3487,10 @@ textarea.input { resize: vertical; }
   .cmdk-trigger kbd,
   .cmdk-foot { display: none; }
   .modal.cmdk { margin-top: 8px; }
-  .explorer-intro { padding-top: 76px; }
+  .cine-skip { right: var(--space-3); bottom: var(--space-3); }
+  .cine-ready { padding: var(--space-10) var(--space-4) var(--space-6); }
+  .cine-steps li { grid-template-columns: 18px auto; }
+  .cine-step-state { grid-column: 2 / -1; text-align: left; }
 
   .user-nav {
     position: fixed;

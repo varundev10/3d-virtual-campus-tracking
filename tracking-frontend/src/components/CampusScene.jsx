@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
@@ -13,7 +13,12 @@ import { createSky } from '../scene/sky.js';
 import { createCloudShadows, createParticles } from '../scene/ambient.js';
 import { createDetailKit, createStreetLights } from '../scene/details.js';
 import { createLabelSprite, restyleLabel, updateLabelDistance } from '../scene/labels.js';
+import {
+  INTRO_MAX_DISTANCE, INTRO_SECONDS, NORMAL_FOV, applyIntroPose,
+} from '../scene/introCamera.js';
+import { isWebGLAvailable } from '../scene/webgl.js';
 import Icon from './ui/Icon.jsx';
+import SceneUnavailable from './SceneUnavailable.jsx';
 
 const ACCENT = '#22d3ee';
 const START_CAMERA = new THREE.Vector3(78, 72, 86);
@@ -199,8 +204,16 @@ export default function CampusScene({
   label = '3D campus model',
   showControls = true,
   mode = 'night',
+  // Cinematic intro driven by the page: 'hold' parks the camera at the start of the sweep, 'play' runs it,
+  // 'settle' jumps straight to the normal view, 'skip' eases there, 'off' is the normal explorer.
+  intro = 'off',
+  onReady,
+  onIntroEnd,
 }) {
   const [quality] = useQuality();
+  // WebGL missing (or the renderer failed to start): show an explanation instead of crashing the page.
+  const [unavailable, setUnavailable] = useState(() => !isWebGLAvailable());
+  const [contextLost, setContextLost] = useState(false);
   const mountRef = useRef(null);
   const markersRef = useRef(new Map());
   const sceneRef = useRef(null);
@@ -218,16 +231,36 @@ export default function CampusScene({
   const modeRef = useRef(mode);
   const qualityRef = useRef(quality);
   const onSelectRef = useRef(onSelectZone);
+  const onReadyRef = useRef(onReady);
+  const onIntroEndRef = useRef(onIntroEnd);
+  const introRef = useRef({ state: intro, startedAt: null });
 
   // Keep the "latest value" refs current. Declared first so they are set before the effects below run.
   useEffect(() => {
     modeRef.current = mode;
     qualityRef.current = quality;
     onSelectRef.current = onSelectZone;
+    onReadyRef.current = onReady;
+    onIntroEndRef.current = onIntroEnd;
   });
+
+  // The page changes the intro state; the render loop reads it.
+  useEffect(() => {
+    introRef.current.state = intro;
+    if (intro === 'play') introRef.current.startedAt = null;
+  }, [intro]);
+
+  // Without WebGL the model never loads; say so rather than leaving the page's status on "Loading model".
+  useEffect(() => {
+    if (!unavailable) return;
+    onModelStatus?.({
+      state: 'placeholder', label: '3D unavailable', detail: 'WebGL is not available in this browser.', reason: 'unsupported',
+    });
+  }, [unavailable, onModelStatus]);
 
   useEffect(() => {
     const mount = mountRef.current;
+    if (!mount) return undefined; // WebGL unavailable: the fallback is rendered instead of the canvas
     const markers = markersRef.current;
     const zoneObjects = zoneObjectsRef.current;
     const scene = new THREE.Scene();
@@ -239,7 +272,15 @@ export default function CampusScene({
     camera.position.copy(START_CAMERA);
     camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    } catch {
+      // Detection passed but the context could not be created (driver/GPU trouble). Show the fallback
+      // rather than letting the exception unmount the whole app.
+      queueMicrotask(() => setUnavailable(true));
+      return undefined;
+    }
     // Neutral tone mapping rolls highlights off without shifting hues, which keeps a textured Metashape
     // model true to its colors.
     renderer.toneMapping = THREE.NeutralToneMapping;
@@ -259,6 +300,27 @@ export default function CampusScene({
       cameraGoalRef.current = null;
     });
     viewRef.current = { camera, controls };
+
+    // Cinematic intro. While parked or playing, orbit input is off and the distance limit is lifted so the sweep
+    // can start farther out than the user is normally allowed to go. Everything runs in the one render loop below.
+    const intro = introRef.current;
+    const beginIntroControl = () => {
+      controls.enabled = false;
+      controls.maxDistance = INTRO_MAX_DISTANCE;
+    };
+    const settleCamera = () => {
+      camera.position.copy(START_CAMERA);
+      controls.target.set(0, 0, 0);
+      camera.fov = NORMAL_FOV;
+      camera.updateProjectionMatrix();
+      controls.enabled = true;
+      controls.maxDistance = 220;
+      intro.state = 'off';
+    };
+    if (intro.state === 'hold' || intro.state === 'play') {
+      beginIntroControl();
+      applyIntroPose(camera, controls, START_CAMERA, 0);
+    }
 
     // Lights. Colors and intensities are set per day / night mode by applyEnvironment.
     const hemi = new THREE.HemisphereLight('#d6e8ff', '#0a1424', 1.25);
@@ -394,6 +456,15 @@ export default function CampusScene({
     renderer.domElement.addEventListener('pointerup', handleUp);
     renderer.domElement.addEventListener('pointermove', handleMove);
 
+    // If the browser reclaims the graphics context, say so; three.js restores the scene on its own when it returns.
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      setContextLost(true);
+    };
+    const handleContextRestored = () => setContextLost(false);
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored);
+
     // Reduced motion: pins and particles stay put, clouds stop drifting.
     const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     let motion = motionQuery?.matches ? 0 : 1;
@@ -410,6 +481,7 @@ export default function CampusScene({
     }).catch(() => {});
 
     let frame;
+    let readyFired = false;
     const clock = new THREE.Clock();
     const animate = () => {
       frame = requestAnimationFrame(animate);
@@ -436,16 +508,48 @@ export default function CampusScene({
       sky.update(camera, effectsTime, pixelRatio);
       if (motion) clouds.update(delta);
 
-      if (focusRef.current) {
-        controls.target.lerp(focusRef.current, 0.08);
-        if (controls.target.distanceTo(focusRef.current) < 0.1) focusRef.current = null;
-      }
-      if (cameraGoalRef.current) {
-        camera.position.lerp(cameraGoalRef.current, 0.12);
-        if (camera.position.distanceTo(cameraGoalRef.current) < 0.1) cameraGoalRef.current = null;
+      if (intro.state === 'hold' || intro.state === 'play') {
+        beginIntroControl();
+        let progress = 0;
+        if (intro.state === 'play') {
+          if (intro.startedAt == null) intro.startedAt = elapsed;
+          progress = Math.min((elapsed - intro.startedAt) / INTRO_SECONDS, 1);
+        }
+        applyIntroPose(camera, controls, START_CAMERA, progress);
+        if (progress >= 1) {
+          settleCamera();
+          onIntroEndRef.current?.();
+        }
+      } else if (intro.state === 'settle') {
+        settleCamera();
+      } else {
+        if (intro.state === 'skip') {
+          // Ease from wherever the sweep is to the normal view, then hand the controls back.
+          intro.state = 'skipping';
+          controls.enabled = true;
+          focusRef.current = new THREE.Vector3(0, 0, 0);
+          cameraGoalRef.current = START_CAMERA.clone();
+        }
+        if (intro.state === 'skipping') {
+          camera.fov += (NORMAL_FOV - camera.fov) * 0.12;
+          camera.updateProjectionMatrix();
+        }
+        if (focusRef.current) {
+          controls.target.lerp(focusRef.current, 0.08);
+          if (controls.target.distanceTo(focusRef.current) < 0.1) focusRef.current = null;
+        }
+        if (cameraGoalRef.current) {
+          camera.position.lerp(cameraGoalRef.current, 0.12);
+          if (camera.position.distanceTo(cameraGoalRef.current) < 0.1) cameraGoalRef.current = null;
+        }
+        if (intro.state === 'skipping' && !focusRef.current && !cameraGoalRef.current) settleCamera();
       }
       controls.update();
       renderer.render(scene, camera);
+      if (!readyFired) {
+        readyFired = true;
+        onReadyRef.current?.();
+      }
     };
     animate();
 
@@ -466,6 +570,9 @@ export default function CampusScene({
       renderer.domElement.removeEventListener('pointerdown', handleDown);
       renderer.domElement.removeEventListener('pointerup', handleUp);
       renderer.domElement.removeEventListener('pointermove', handleMove);
+      // Before forceContextLoss below, so releasing our own context is not reported as a loss.
+      renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+      renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored);
       controls.dispose();
       viewRef.current = null;
       envRef.current = null;
@@ -582,13 +689,26 @@ export default function CampusScene({
     let cancelled = false;
     const modelFormat = getModelFormat(campusModelUrl);
 
-    const showFallback = (message) => {
+    // reason: 'missing' when no model file is installed, 'error' when one exists but could not be used.
+    const showFallback = (message, reason = 'error') => {
       if (cancelled) return;
       placeholderRef.current.visible = true;
       onModelStatus?.({
         state: 'placeholder',
         label: 'Placeholder',
         detail: message,
+        reason,
+      });
+    };
+
+    // Real download progress (bytes received / total) while a model file is being fetched.
+    const reportProgress = (event) => {
+      if (cancelled || !event.lengthComputable || !event.total) return;
+      onModelStatus?.({
+        state: 'loading',
+        label: 'Loading model',
+        detail: campusModelUrl,
+        progress: Math.min(event.loaded / event.total, 1),
       });
     };
 
@@ -628,7 +748,7 @@ export default function CampusScene({
         new GLTFLoader().load(
           campusModelUrl,
           (gltf) => addModel(gltf.scene),
-          undefined,
+          reportProgress,
           () => showFallback('Could not load GLB/GLTF model. Using placeholder campus.'),
         );
         return;
@@ -638,7 +758,7 @@ export default function CampusScene({
         new OBJLoader().load(
           campusModelUrl,
           addModel,
-          undefined,
+          reportProgress,
           () => showFallback('Could not load OBJ model. Using placeholder campus.'),
         );
         return;
@@ -655,9 +775,9 @@ export default function CampusScene({
           const type = response.headers.get('content-type') ?? '';
           // Vite's SPA fallback answers unknown paths with index.html; treat that as missing.
           if (response.ok && !type.includes('text/html')) loadModel();
-          else showFallback('Place the Metashape export at public/models/ucer-campus.glb.');
+          else showFallback('Place the Metashape export at public/models/ucer-campus.glb.', 'missing');
         })
-        .catch(() => showFallback('Place the Metashape export at public/models/ucer-campus.glb.'));
+        .catch(() => showFallback('Place the Metashape export at public/models/ucer-campus.glb.', 'missing'));
     }
 
     return () => {
@@ -711,10 +831,19 @@ export default function CampusScene({
     cameraGoalRef.current = START_CAMERA.clone();
   };
 
+  if (unavailable) {
+    return (
+      <div className="campus-scene">
+        <SceneUnavailable reason="unsupported" />
+      </div>
+    );
+  }
+
   return (
     <div className="campus-scene">
       <div ref={mountRef} className="campus-scene-canvas" role="img" aria-label={label} />
-      {showControls && (
+      {contextLost && <SceneUnavailable reason="lost" />}
+      {showControls && !contextLost && (
         <div className="scene-controls" role="group" aria-label="3D view controls">
           <button type="button" className="icon-button" onClick={() => zoom(0.75)} aria-label="Zoom in" title="Zoom in">
             <Icon name="plus" size={16} />
