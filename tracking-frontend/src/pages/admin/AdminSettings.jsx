@@ -56,7 +56,7 @@ function ModelPreview() {
     <section className="card" aria-labelledby="model-title">
       <header className="card-header">
         <div>
-          <h3 id="model-title">3D campus model</h3>
+          <h2 id="model-title">3D campus model</h2>
           <p>Configured model: <span className="mono">{DEFAULT_CAMPUS_MODEL_URL}</span></p>
         </div>
         <span className={`status-chip ${status.state}`}>{status.label}</span>
@@ -93,12 +93,12 @@ export default function AdminSettings() {
       <div className="page-stack">
         <div className="grid-2">
           <section className="card" aria-labelledby="acct-title">
-            <header className="card-header"><h3 id="acct-title">My account</h3></header>
+            <header className="card-header"><h2 id="acct-title">My account</h2></header>
             <AccountSummary user={user} />
             <ProfileNameForm />
           </section>
           <section className="card" aria-labelledby="pw-title">
-            <header className="card-header"><h3 id="pw-title">Change password</h3></header>
+            <header className="card-header"><h2 id="pw-title">Change password</h2></header>
             <ChangePasswordForm />
           </section>
         </div>
@@ -106,7 +106,7 @@ export default function AdminSettings() {
         <div className="grid-2">
           <section className="card" aria-labelledby="status-title">
             <header className="card-header">
-              <h3 id="status-title">System status</h3>
+              <h2 id="status-title">System status</h2>
               <button type="button" className="btn btn-ghost btn-sm" onClick={recheck}><Icon name="refresh" size={16} /> Re-check</button>
             </header>
             <dl className="detail-list">
@@ -119,7 +119,7 @@ export default function AdminSettings() {
           </section>
 
           <section className="card" aria-labelledby="geo-title">
-            <header className="card-header"><h3 id="geo-title">Campus geofence</h3></header>
+            <header className="card-header"><h2 id="geo-title">Campus geofence</h2></header>
             <p className="muted small">Positions outside this polygon are never stored. Defined in <span className="mono">src/lib/campus.js</span> and mirrored in the backend <span className="mono">GeofenceService</span>.</p>
             <table className="data-table compact">
               <thead><tr><th scope="col">#</th><th scope="col" className="num">Latitude</th><th scope="col" className="num">Longitude</th></tr></thead>

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { TextField } from '../../components/ui/Field.jsx';
 import Icon from '../../components/ui/Icon.jsx';
+import ThemeToggle from '../../components/ui/ThemeToggle.jsx';
 import { homePathFor, isAdmin, useAuth } from '../../lib/auth.jsx';
 import { Link, useRouter } from '../../lib/router.jsx';
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -16,13 +18,14 @@ export function postLoginPath(user, next) {
 }
 
 function AuthFrame({ title, subtitle, children, footer }) {
+  useDocumentTitle(title);
   return (
     <div className="auth-page">
       <section className="auth-aside" aria-hidden="true">
         <div className="brand-lockup">
           <span className="brand-mark">UC</span>
           <div>
-            <h1>UCER Smart Campus</h1>
+            <strong className="brand-name">UCER Smart Campus</strong>
             <p>3D virtual campus &amp; tracking</p>
           </div>
         </div>
@@ -38,8 +41,9 @@ function AuthFrame({ title, subtitle, children, footer }) {
         </ul>
       </section>
       <main className="auth-main" id="main">
+        <ThemeToggle className="auth-theme" />
         <div className="auth-card">
-          <h2>{title}</h2>
+          <h1>{title}</h1>
           <p className="auth-subtitle">{subtitle}</p>
           {children}
           <p className="auth-footer">{footer}</p>

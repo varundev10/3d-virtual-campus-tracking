@@ -7,7 +7,7 @@ export default function SceneUnavailable({ reason = 'unsupported' }) {
   return (
     <div className="scene-unavailable" role="status">
       <span className="empty-icon"><Icon name="cube" size={22} /></span>
-      <h3>{lost ? '3D view paused' : '3D view unavailable'}</h3>
+      <strong className="scene-unavailable-title">{lost ? '3D view paused' : '3D view unavailable'}</strong>
       <p>
         {lost
           ? 'The browser reclaimed the graphics context. It usually comes back on its own; if it does not, reload the page.'

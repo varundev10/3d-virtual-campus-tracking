@@ -8,21 +8,61 @@ import { CAMPUS_ZONES, locationToScenePoint } from '../lib/campus.js';
 import { CAMPUS_MODEL_TRANSFORM, getModelFormat } from '../lib/modelConfig.js';
 import { QUALITY_PRESETS, useQuality } from '../lib/quality.js';
 import { createAssets } from '../scene/assets.js';
-import { applyEnvironment } from '../scene/environment.js';
+import { PALETTES, applyEnvironment, applyMarkerPalette } from '../scene/environment.js';
 import { createSky } from '../scene/sky.js';
 import { createCloudShadows, createParticles } from '../scene/ambient.js';
 import { createDetailKit, createStreetLights } from '../scene/details.js';
-import { createLabelSprite, restyleLabel, updateLabelDistance } from '../scene/labels.js';
+import {
+  LABEL_FONT, createLabelSprite, restyleLabel, updateLabelDistance,
+} from '../scene/labels.js';
 import {
   INTRO_MAX_DISTANCE, INTRO_SECONDS, NORMAL_FOV, applyIntroPose,
 } from '../scene/introCamera.js';
+import { createCameraDirector } from '../scene/cameraDirector.js';
+import { createOutline, updateEntryVisuals } from '../scene/interaction.js';
+import {
+  ROUTE_Y, createRouteVisual, routeFramePose, updateRouteVisual,
+} from '../scene/route.js';
 import { isWebGLAvailable } from '../scene/webgl.js';
 import Icon from './ui/Icon.jsx';
 import SceneUnavailable from './SceneUnavailable.jsx';
 
-const ACCENT = '#22d3ee';
 const START_CAMERA = new THREE.Vector3(78, 72, 86);
+const ORIGIN = new THREE.Vector3(0, 0, 0);
 const LABEL_HEIGHT_ABOVE_ROOF = 9;
+
+// Camera moves. Seconds are per move; reduced motion makes every move instant.
+const FLIGHT = { select: 1.5, overview: 1.5, zoom: 0.45, intro: 1.2, fov: 0.6 };
+const SELECT_FOV = 40;
+const IDLE_SECONDS = 12;
+const IDLE_ROTATE_SPEED = 0.35;
+const START_AZIMUTH = Math.atan2(START_CAMERA.x, START_CAMERA.z);
+const wrapAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+
+function flyToOverview(director, motion) {
+  director.flyTo({
+    position: START_CAMERA, target: ORIGIN, fov: NORMAL_FOV, duration: motion ? FLIGHT.overview : 0,
+  });
+}
+
+// Where the camera should end up when `entry` is selected: close enough to read the building, looking at its
+// middle, and turned a little from where it is now so the move arcs instead of just dollying in. The turn is
+// toward a per-building viewing angle but never more than ~35 degrees, so selecting never spins the view around.
+function selectionPose(entry, camera, orbitTarget) {
+  const center = new THREE.Vector3(entry.zone.x, entry.height * 0.45, entry.zone.z);
+  const current = new THREE.Spherical().setFromVector3(camera.position.clone().sub(orbitTarget));
+  let hash = 0;
+  for (let i = 0; i < entry.zone.id.length; i += 1) hash = (hash * 31 + entry.zone.id.charCodeAt(i)) >>> 0;
+  const preferred = START_AZIMUTH + 0.5 * (((hash % 1000) / 1000) - 0.5);
+  let turn = wrapAngle(preferred - current.theta);
+  if (Math.abs(turn) < 0.25) turn = turn < 0 ? -0.25 : 0.25; // always arc a little
+  turn = THREE.MathUtils.clamp(turn, -0.6, 0.6);
+  // Far enough that the building reads as a place on the campus (neighbours and roads stay in view), not a close-up.
+  const radius = THREE.MathUtils.clamp(Math.max(entry.size.width, entry.size.depth) * 3 + entry.height * 1.4, 60, 92);
+  const phi = THREE.MathUtils.clamp(current.phi, 0.8, 1.2);
+  const offset = new THREE.Vector3().setFromSpherical(new THREE.Spherical(radius, phi, current.theta + turn));
+  return { position: center.clone().add(offset), target: center, fov: SELECT_FOV };
+}
 
 // Builds one placeholder building (into `buildings`) and its label (into `labels`, which stays
 // visible over a loaded Metashape model so locations remain selectable).
@@ -33,11 +73,11 @@ function addBuilding(buildings, labels, kit, zone, index, mode) {
   const group = new THREE.Group();
   group.position.set(zone.x, 0, zone.z);
 
-  // Category colors are tuned for the UI; soften them slightly so large painted walls are not harsh.
-  const wallColor = new THREE.Color(zone.color).offsetHSL(0, -0.12, 0.02);
+  // Walls are matte wine (clay-model look); the category colour lives on the pin above the roof.
+  const wallColor = new THREE.Color((PALETTES[mode] ?? PALETTES.night).wall);
   const building = new THREE.Mesh(
     new THREE.BoxGeometry(size.width, height, size.depth),
-    new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.55, metalness: 0.06 }),
+    new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.92, metalness: 0 }),
   );
   building.position.y = height / 2;
   building.castShadow = true;
@@ -47,12 +87,18 @@ function addBuilding(buildings, labels, kit, zone, index, mode) {
 
   const roof = new THREE.Mesh(
     new THREE.BoxGeometry(size.width + 1.5, 1.4, size.depth + 1.5),
-    new THREE.MeshStandardMaterial({ color: '#1e2c44', roughness: 0.35, metalness: 0.3 }),
+    new THREE.MeshStandardMaterial({ color: (PALETTES[mode] ?? PALETTES.night).roof, roughness: 0.5, metalness: 0.15 }),
   );
   roof.position.y = height + 1;
   roof.castShadow = true;
   roof.userData.zoneId = zone.id;
   group.add(roof);
+
+  // Hover / selection: base colors that the per-frame tint scales, and an edge outline revealed on hover.
+  building.material.userData.base = wallColor.clone();
+  roof.material.userData.base = roof.material.color.clone();
+  const outline = createOutline(size.width, size.depth, height);
+  group.add(outline.group);
 
   const details = kit.addBuilding(group, zone, { ...size, height }, index);
   buildings.add(group);
@@ -61,7 +107,19 @@ function addBuilding(buildings, labels, kit, zone, index, mode) {
   label.position.set(zone.x, height + LABEL_HEIGHT_ABOVE_ROOF, zone.z);
   labels.add(label);
 
-  return { building, roof, label, height, group, size, ...details };
+  return {
+    building,
+    roof,
+    label,
+    labelY: label.position.y,
+    height,
+    group,
+    size,
+    outline,
+    // Eased interaction state (see scene/interaction.js). `*Target` values are set by hover / selection.
+    hover: 0, select: 0, dim: 0, hoverTarget: 0, dimTarget: 0, atRest: true,
+    ...details,
+  };
 }
 
 function disposeObject(object) {
@@ -96,21 +154,21 @@ function createPlaceholderCampus() {
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(170, 120),
-    new THREE.MeshStandardMaterial({ color: '#0d1a2c', roughness: 0.95 }),
+    new THREE.MeshStandardMaterial({ color: '#2a1119', roughness: 1 }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   group.add(ground);
 
   // Blueprint grid over the ground plane, squashed to the ground's 170 x 120 footprint.
-  const grid = new THREE.GridHelper(170, 34, '#1d6b86', '#16324d');
+  const grid = new THREE.GridHelper(170, 34, '#5c4522', '#34171f');
   grid.scale.z = 120 / 170;
   grid.position.y = 0.04;
   grid.material.transparent = true;
-  grid.material.opacity = 0.55;
+  grid.material.opacity = 0.7;
   group.add(grid);
 
-  const roadMaterial = new THREE.MeshStandardMaterial({ color: '#1a2a40', roughness: 0.7, metalness: 0.1 });
+  const roadMaterial = new THREE.MeshStandardMaterial({ color: '#3a1b26', roughness: 0.85, metalness: 0.05 });
   const mainRoad = new THREE.Mesh(new THREE.BoxGeometry(150, 0.18, 7), roadMaterial);
   mainRoad.position.set(0, 0.12, 0);
   mainRoad.receiveShadow = true;
@@ -125,6 +183,7 @@ function createPlaceholderCampus() {
   buildings.name = 'placeholder-buildings';
   group.add(buildings);
 
+  // The campus boundary as a dashed site line.
   const geofenceShape = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-72, 0.45, -50),
@@ -132,11 +191,12 @@ function createPlaceholderCampus() {
       new THREE.Vector3(74, 0.45, 42),
       new THREE.Vector3(-58, 0.45, 52),
     ]),
-    new THREE.LineBasicMaterial({ color: ACCENT, linewidth: 2 }),
+    new THREE.LineDashedMaterial({ color: '#d7b477', dashSize: 3, gapSize: 2 }),
   );
+  geofenceShape.computeLineDistances();
   group.add(geofenceShape);
 
-  return { group, buildings, ground, grid, road: roadMaterial };
+  return { group, buildings, ground, grid, road: roadMaterial, geofence: geofenceShape };
 }
 
 function prepareCampusModel(object) {
@@ -159,17 +219,19 @@ function prepareCampusModel(object) {
     child.receiveShadow = true;
 
     if (!child.material) {
-      child.material = new THREE.MeshStandardMaterial({ color: '#9fb3c8', roughness: 0.82 });
+      child.material = new THREE.MeshStandardMaterial({ color: '#4a2837', roughness: 0.85 });
     }
   });
 }
 
-// A user's live position: a bobbing pin with a pulsing ring (animated in the render loop).
-function createPin(color = ACCENT) {
+// A user's live position: a bobbing pin with a pulsing ring (animated in the render loop). Its colours come from
+// the scene palette (see applyMarkerPalette), so it follows day / night like everything else.
+function createPin(isCurrent, mode) {
+  const color = (PALETTES[mode] ?? PALETTES.night).marker[isCurrent ? 'current' : 'other'];
   const group = new THREE.Group();
   const stem = new THREE.Mesh(
     new THREE.CylinderGeometry(0.45, 0.45, 5, 16),
-    new THREE.MeshStandardMaterial({ color: '#cfdcee', metalness: 0.4, roughness: 0.3 }),
+    new THREE.MeshStandardMaterial({ color: '#7a5a66', metalness: 0.2, roughness: 0.55 }),
   );
   stem.position.y = 2.5;
 
@@ -189,6 +251,9 @@ function createPin(color = ACCENT) {
   group.add(stem, head, ring);
   group.userData.head = head;
   group.userData.ring = ring;
+  group.userData.stem = stem;
+  group.userData.isCurrent = isCurrent;
+  applyMarkerPalette(group, PALETTES[mode] ?? PALETTES.night);
   return group;
 }
 
@@ -209,6 +274,10 @@ export default function CampusScene({
   intro = 'off',
   onReady,
   onIntroEnd,
+  // Increment to fly the camera back to the overview of the whole campus.
+  overviewSignal = 0,
+  // Increment to fly to the currently selected place again (e.g. it was picked a second time from a list).
+  refocusSignal = 0,
 }) {
   const [quality] = useQuality();
   // WebGL missing (or the renderer failed to start): show an explanation instead of crashing the page.
@@ -224,8 +293,11 @@ export default function CampusScene({
   const animatedRef = useRef([]);
   const modelRef = useRef(null);
   const routeRef = useRef(null);
-  const focusRef = useRef(null);
-  const cameraGoalRef = useRef(null);
+  const framedRouteRef = useRef(null);
+  const directorRef = useRef(null);
+  const motionRef = useRef(1);
+  const selectedRef = useRef(selectedZoneId);
+  const flownToRef = useRef(null);
   const viewRef = useRef(null);
   const envRef = useRef(null);
   const modeRef = useRef(mode);
@@ -240,6 +312,7 @@ export default function CampusScene({
     modeRef.current = mode;
     qualityRef.current = quality;
     onSelectRef.current = onSelectZone;
+    selectedRef.current = selectedZoneId;
     onReadyRef.current = onReady;
     onIntroEndRef.current = onIntroEnd;
   });
@@ -264,8 +337,8 @@ export default function CampusScene({
     const markers = markersRef.current;
     const zoneObjects = zoneObjectsRef.current;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#070d1a');
-    scene.fog = new THREE.Fog('#070d1a', 120, 340);
+    scene.background = new THREE.Color('#210c13');
+    scene.fog = new THREE.Fog('#210c13', 120, 340);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.5, 1000);
@@ -295,10 +368,12 @@ export default function CampusScene({
     controls.maxDistance = 220;
     controls.maxPolarAngle = Math.PI / 2.15;
     controls.target.set(0, 0, 0);
-    controls.addEventListener('start', () => {
-      focusRef.current = null;
-      cameraGoalRef.current = null;
-    });
+    controls.autoRotateSpeed = IDLE_ROTATE_SPEED;
+    // All camera moves (fly-to, zoom buttons, reset, intro skip) go through one time-based director.
+    const director = createCameraDirector(camera, controls);
+    directorRef.current = director;
+    // Dragging, scrolling or pinching always wins: it ends any move in progress where it stands.
+    controls.addEventListener('start', () => director.cancel());
     viewRef.current = { camera, controls };
 
     // Cinematic intro. While parked or playing, orbit input is off and the distance limit is lifted so the sweep
@@ -323,10 +398,10 @@ export default function CampusScene({
     }
 
     // Lights. Colors and intensities are set per day / night mode by applyEnvironment.
-    const hemi = new THREE.HemisphereLight('#d6e8ff', '#0a1424', 1.25);
+    const hemi = new THREE.HemisphereLight('#c9a9a0', '#12060b', 0.95);
     scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight('#e6f0ff', 1.7);
+    const sun = new THREE.DirectionalLight('#f4dcc0', 1.3);
     sun.position.set(40, 90, 35);
     sun.castShadow = true;
     sun.shadow.camera.left = -100;
@@ -339,7 +414,7 @@ export default function CampusScene({
     sun.shadow.normalBias = 0.5;
     scene.add(sun);
 
-    const rim = new THREE.DirectionalLight('#67e8f9', 0.9);
+    const rim = new THREE.DirectionalLight('#d7b477', 0.8);
     rim.position.set(-60, 40, -70);
     scene.add(rim);
 
@@ -351,7 +426,7 @@ export default function CampusScene({
     // Land that continues past the campus plane and fades into the horizon through the fog.
     const farGround = new THREE.Mesh(
       new THREE.CircleGeometry(420, 64).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: '#07101d' }),
+      new THREE.MeshBasicMaterial({ color: '#210c13' }),
     );
     farGround.position.y = -0.2;
     farGround.renderOrder = 5; // after the campus plane, so the GPU skips the pixels it already covers
@@ -376,11 +451,15 @@ export default function CampusScene({
 
     const ctx = {
       scene,
+      renderer,
+      camera,
       sky,
       farGround,
       ground: placeholder.ground,
       grid: placeholder.grid,
       road: placeholder.road,
+      geofence: placeholder.geofence,
+      markers,
       hemi,
       sun,
       rim,
@@ -390,6 +469,7 @@ export default function CampusScene({
       assets,
       streetLights: null,
       zoneObjects,
+      warmup: 0,
       applyQuality: null,
     };
     envRef.current = ctx;
@@ -426,35 +506,61 @@ export default function CampusScene({
     applyEnvironment(ctx, modeRef.current);
     ctx.applyQuality(QUALITY_PRESETS[qualityRef.current]);
 
-    // Click (not drag) on a building or label selects that location.
+    // Pointer handling. A click (not a drag) on a building, pin or label selects it; a click on empty ground clears
+    // the selection. Hover is resolved once per frame in the render loop, so it also follows a moving camera.
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    const pointerAt = { x: 0, y: 0, inside: false };
+    let hoveredId = null;
     let downAt = null;
-    const pickZone = (event) => {
+    const pickAt = (clientX, clientY) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
       const targets = [...labels.children];
       if (placeholder.group.visible) targets.push(...placeholder.buildings.children);
       const hit = raycaster.intersectObjects(targets, true).find((h) => h.object.userData.zoneId);
       return hit?.object.userData.zoneId ?? null;
     };
+    const clearHover = () => {
+      pointerAt.inside = false;
+      hoveredId = null;
+      renderer.domElement.style.cursor = '';
+    };
     const handleDown = (event) => {
       downAt = { x: event.clientX, y: event.clientY };
     };
     const handleUp = (event) => {
       if (!downAt || Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 5) return;
-      const zoneId = pickZone(event);
-      if (zoneId) onSelectRef.current?.(zoneId);
+      if (!onSelectRef.current) return;
+      const zoneId = pickAt(event.clientX, event.clientY);
+      if (zoneId) onSelectRef.current(zoneId);
+      else if (selectedRef.current) onSelectRef.current(null);
     };
     const handleMove = (event) => {
-      if (!onSelectRef.current || event.buttons) return;
-      renderer.domElement.style.cursor = pickZone(event) ? 'pointer' : 'grab';
+      if (!onSelectRef.current) return;
+      if (event.buttons) {
+        clearHover(); // dragging the camera, not hovering
+        return;
+      }
+      pointerAt.x = event.clientX;
+      pointerAt.y = event.clientY;
+      pointerAt.inside = true;
     };
     renderer.domElement.addEventListener('pointerdown', handleDown);
     renderer.domElement.addEventListener('pointerup', handleUp);
     renderer.domElement.addEventListener('pointermove', handleMove);
+    renderer.domElement.addEventListener('pointerleave', clearHover);
+
+    // Idle drift: after a while with no input anywhere on the page the camera starts a very slow orbit. Any input,
+    // from any device, stops it at once.
+    let lastInput = performance.now();
+    const markInput = () => {
+      lastInput = performance.now();
+    };
+    const inputEvents = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'];
+    inputEvents.forEach((type) => window.addEventListener(type, markInput, { passive: true }));
 
     // If the browser reclaims the graphics context, say so; three.js restores the scene on its own when it returns.
     const handleContextLost = (event) => {
@@ -468,14 +574,16 @@ export default function CampusScene({
     // Reduced motion: pins and particles stay put, clouds stop drifting.
     const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     let motion = motionQuery?.matches ? 0 : 1;
+    motionRef.current = motion;
     const handleMotion = (event) => {
       motion = event.matches ? 0 : 1;
+      motionRef.current = motion;
     };
     motionQuery?.addEventListener('change', handleMotion);
 
     // Label textures drawn before the web font finished loading used a fallback face; redraw them once it is in.
     let disposed = false;
-    document.fonts?.load('600 46px "Space Grotesk"').then(() => {
+    document.fonts?.load(LABEL_FONT).then(() => {
       if (disposed) return;
       zoneObjects.forEach((entry) => restyleLabel(entry.label, entry.zone, { mode: modeRef.current, selected: entry.selected }));
     }).catch(() => {});
@@ -488,6 +596,18 @@ export default function CampusScene({
       const delta = Math.min(clock.getDelta(), 0.1);
       const elapsed = clock.elapsedTime;
 
+      // Hover: re-resolved every frame while the pointer is over the scene, so it stays right as the camera moves.
+      if (pointerAt.inside && intro.state === 'off' && onSelectRef.current) {
+        const next = pickAt(pointerAt.x, pointerAt.y);
+        if (next !== hoveredId) {
+          hoveredId = next;
+          renderer.domElement.style.cursor = next ? 'pointer' : '';
+        }
+      } else if (hoveredId) {
+        hoveredId = null;
+        renderer.domElement.style.cursor = '';
+      }
+
       markers.forEach((marker) => {
         const { head, ring } = marker.userData;
         marker.position.y = Math.sin(elapsed * 2.4 + marker.position.x) * 0.35 * motion;
@@ -498,10 +618,26 @@ export default function CampusScene({
         head.material.emissiveIntensity = 0.6 + 0.25 * Math.sin(elapsed * 3 + marker.position.x) * motion;
       });
 
+      // One-frame warm-up draw of the (normally hidden) hover outlines; see the zones effect.
+      if (ctx.warmup > 0) {
+        const done = ctx.warmup === 1;
+        ctx.warmup -= 1;
+        animatedRef.current.forEach((entry) => {
+          if (!entry.atRest) return;
+          entry.outline.material.opacity = done ? 0 : 0.003;
+          entry.outline.group.visible = !done;
+        });
+      }
+
       kit.animatePins(animatedRef.current, elapsed, motion);
       animatedRef.current.forEach((entry) => {
-        updateLabelDistance(entry.label, entry.selected, camera.position.distanceTo(entry.label.position));
+        entry.hoverTarget = entry.zone.id === hoveredId ? 1 : 0;
+        updateEntryVisuals(entry, delta, elapsed, motion);
+        updateLabelDistance(entry.label, entry.selected, camera.position.distanceTo(entry.label.position), {
+          hover: entry.hover, dim: entry.dim,
+        });
       });
+      if (routeRef.current) updateRouteVisual(routeRef.current, delta, elapsed, motion, modeRef.current);
 
       const effectsTime = motion ? elapsed : 0;
       particles.update(effectsTime, pixelRatio);
@@ -527,24 +663,17 @@ export default function CampusScene({
           // Ease from wherever the sweep is to the normal view, then hand the controls back.
           intro.state = 'skipping';
           controls.enabled = true;
-          focusRef.current = new THREE.Vector3(0, 0, 0);
-          cameraGoalRef.current = START_CAMERA.clone();
+          director.flyTo({
+            position: START_CAMERA, target: ORIGIN, fov: NORMAL_FOV, duration: motion ? FLIGHT.intro : 0,
+          });
         }
-        if (intro.state === 'skipping') {
-          camera.fov += (NORMAL_FOV - camera.fov) * 0.12;
-          camera.updateProjectionMatrix();
-        }
-        if (focusRef.current) {
-          controls.target.lerp(focusRef.current, 0.08);
-          if (controls.target.distanceTo(focusRef.current) < 0.1) focusRef.current = null;
-        }
-        if (cameraGoalRef.current) {
-          camera.position.lerp(cameraGoalRef.current, 0.12);
-          if (camera.position.distanceTo(cameraGoalRef.current) < 0.1) cameraGoalRef.current = null;
-        }
-        if (intro.state === 'skipping' && !focusRef.current && !cameraGoalRef.current) settleCamera();
+        director.update(elapsed);
+        if (intro.state === 'skipping' && !director.active) settleCamera();
+        controls.autoRotate = Boolean(motion) && intro.state === 'off' && !director.active && !document.hidden
+          && performance.now() - lastInput > IDLE_SECONDS * 1000;
       }
-      controls.update();
+      // The frame time makes the idle drift's speed independent of the display's refresh rate.
+      controls.update(delta);
       renderer.render(scene, camera);
       if (!readyFired) {
         readyFired = true;
@@ -570,6 +699,9 @@ export default function CampusScene({
       renderer.domElement.removeEventListener('pointerdown', handleDown);
       renderer.domElement.removeEventListener('pointerup', handleUp);
       renderer.domElement.removeEventListener('pointermove', handleMove);
+      renderer.domElement.removeEventListener('pointerleave', clearHover);
+      inputEvents.forEach((type) => window.removeEventListener(type, markInput));
+      directorRef.current = null;
       // Before forceContextLoss below, so releasing our own context is not reported as a loss.
       renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
       renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored);
@@ -626,6 +758,13 @@ export default function CampusScene({
     placeholderRef.current.add(ctx.streetLights.group);
     animatedRef.current = [...zoneObjectsRef.current.values()];
     applyEnvironment(ctx, modeRef.current);
+    // Warm up the hover outlines so the first hover or selection does not stall on shader work: start building every
+    // material's program now, and (see the render loop) draw the hidden outlines once at near-zero opacity, because
+    // some drivers only finish building a pipeline on its first draw. compile() rather than compileAsync(): nothing
+    // waits on the result, and compileAsync keeps polling the materials from a timer, which throws (uncaught) if
+    // they are disposed meanwhile, e.g. by a rebuild of this list or by leaving the page.
+    ctx.renderer.compile(ctx.scene, ctx.camera);
+    ctx.warmup = 2;
   }, [zones]);
 
   // Day / night: restyle in place. Camera, controls and selection are untouched.
@@ -642,44 +781,106 @@ export default function CampusScene({
     envRef.current?.applyQuality(QUALITY_PRESETS[quality]);
   }, [quality]);
 
-  // Highlight and focus the selected location. Only zones whose highlight state actually changes get a
-  // new label texture (the old and new selection), not every label on each click.
+  // Highlight and focus the selected location. The glow, outline, lift and the dimming of everything else are eased
+  // every frame from the flags set here; only the old and new selection get a new label texture.
   useEffect(() => {
     zoneObjectsRef.current.forEach((entry, id) => {
-      const { building, label: sprite, zone } = entry;
       const selected = id === selectedZoneId;
-      if (entry.selected === selected) return;
-      entry.selected = selected;
-      building.material.emissive = new THREE.Color(selected ? ACCENT : '#000000');
-      building.material.emissiveIntensity = selected ? 0.55 : 0;
-      restyleLabel(sprite, zone, { mode: modeRef.current, selected });
+      if (entry.selected !== selected) {
+        entry.selected = selected;
+        restyleLabel(entry.label, entry.zone, { mode: modeRef.current, selected });
+      }
+      entry.dimTarget = selectedZoneId && !selected ? 1 : 0;
     });
-    const target = zoneObjectsRef.current.get(selectedZoneId);
-    if (target) focusRef.current = new THREE.Vector3(target.zone.x, 0, target.zone.z);
+
+    const director = directorRef.current;
+    const view = viewRef.current;
+    if (!director || !view) return;
+    const entry = zoneObjectsRef.current.get(selectedZoneId);
+    if (entry) {
+      // Fly once per selection; rebuilding the building list must not replay the move.
+      if (flownToRef.current === selectedZoneId) return;
+      flownToRef.current = selectedZoneId;
+      director.flyTo({
+        ...selectionPose(entry, view.camera, view.controls.target),
+        duration: motionRef.current ? FLIGHT.select : 0,
+      });
+    } else if (!selectedZoneId && flownToRef.current) {
+      // Selection cleared: the camera stays where the user left it; only the field of view settles back.
+      flownToRef.current = null;
+      director.flyTo({
+        position: view.camera.position.clone(),
+        target: view.controls.target.clone(),
+        fov: NORMAL_FOV,
+        duration: motionRef.current ? FLIGHT.fov : 0,
+      });
+    }
   }, [selectedZoneId, zones]);
 
-  // Straight-line guidance from the user's position to the destination.
+  // Page-triggered camera moves: "Back to overview", and re-focusing a place that is already selected.
+  const overviewSeen = useRef(overviewSignal);
+  useEffect(() => {
+    if (overviewSeen.current === overviewSignal) return;
+    overviewSeen.current = overviewSignal;
+    if (!directorRef.current) return;
+    flownToRef.current = null;
+    flyToOverview(directorRef.current, motionRef.current);
+  }, [overviewSignal]);
+
+  const refocusSeen = useRef(refocusSignal);
+  useEffect(() => {
+    if (refocusSeen.current === refocusSignal) return;
+    refocusSeen.current = refocusSignal;
+    const entry = zoneObjectsRef.current.get(selectedRef.current);
+    const view = viewRef.current;
+    if (!entry || !view || !directorRef.current) return;
+    flownToRef.current = selectedRef.current;
+    directorRef.current.flyTo({
+      ...selectionPose(entry, view.camera, view.controls.target),
+      duration: motionRef.current ? FLIGHT.select : 0,
+    });
+  }, [refocusSignal]);
+
+  // Straight-line guidance from the user's position to the destination (see scene/route.js). One visual per
+  // destination: it is rebuilt, and its reveal replays, only when the destination changes or the route appears or
+  // goes away. Position updates just move its end points (next effect).
+  const hasRoute = Boolean(route?.from && route?.to);
+  const routeDestination = route?.to?.code ?? null;
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene) return;
-    if (routeRef.current) {
-      scene.remove(routeRef.current);
-      disposeObject(routeRef.current);
+    if (!scene || !hasRoute) return undefined;
+    const visual = createRouteVisual();
+    scene.add(visual.group);
+    routeRef.current = visual;
+    return () => {
+      scene.remove(visual.group);
+      disposeObject(visual.group);
       routeRef.current = null;
-    }
-    if (!route?.from || !route?.to) return;
+      framedRouteRef.current = null;
+    };
+  }, [hasRoute, routeDestination]);
+
+  useEffect(() => {
+    const visual = routeRef.current;
+    if (!visual || !route?.from || !route?.to) return;
     const from = locationToScenePoint(route.from.latitude, route.from.longitude);
     const to = locationToScenePoint(route.to.latitude, route.to.longitude);
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(from.x, 1.2, from.z),
-        new THREE.Vector3(to.x, 1.2, to.z),
-      ]),
-      new THREE.LineDashedMaterial({ color: '#67e8f9', dashSize: 2.5, gapSize: 1.5 }),
-    );
-    line.computeLineDistances();
-    scene.add(line);
-    routeRef.current = line;
+    visual.from.set(from.x, ROUTE_Y, from.z);
+    visual.to.set(to.x, ROUTE_Y, to.z);
+    // The ring around the destination clears the building's corners.
+    const building = zoneObjectsRef.current.get(route.to.code);
+    visual.radius = building ? Math.hypot(building.size.width, building.size.depth) / 2 + 2 : 6;
+
+    // Bring the whole route into view once per destination, so its reveal is seen from the start. Later position
+    // updates leave the camera alone, and any drag or scroll by the user ends the move.
+    const view = viewRef.current;
+    const director = directorRef.current;
+    if (!view || !director || framedRouteRef.current === route.to.code) return;
+    framedRouteRef.current = route.to.code;
+    director.flyTo({
+      ...routeFramePose(visual, view.camera, view.controls.target, NORMAL_FOV),
+      duration: motionRef.current ? FLIGHT.select : 0,
+    });
   }, [route]);
 
   useEffect(() => {
@@ -804,7 +1005,7 @@ export default function CampusScene({
 
       let marker = markersRef.current.get(id);
       if (!marker) {
-        marker = createPin(String(currentPosition?.userId) === id ? ACCENT : '#a78bfa');
+        marker = createPin(String(currentPosition?.userId) === id, modeRef.current);
         scene.add(marker);
         markersRef.current.set(id, marker);
       }
@@ -819,16 +1020,23 @@ export default function CampusScene({
   const zoom = (factor) => {
     const view = viewRef.current;
     if (!view) return;
+    const director = directorRef.current;
+    if (!director) return;
     const { camera, controls } = view;
-    const offset = (cameraGoalRef.current ?? camera.position).clone().sub(controls.target);
+    const offset = camera.position.clone().sub(controls.target);
     const length = THREE.MathUtils.clamp(offset.length() * factor, controls.minDistance, controls.maxDistance);
-    cameraGoalRef.current = controls.target.clone().add(offset.setLength(length));
+    director.flyTo({
+      position: controls.target.clone().add(offset.setLength(length)),
+      target: controls.target.clone(),
+      fov: camera.fov,
+      duration: motionRef.current ? FLIGHT.zoom : 0,
+    });
   };
 
   const resetView = () => {
-    if (!viewRef.current) return;
-    focusRef.current = new THREE.Vector3(0, 0, 0);
-    cameraGoalRef.current = START_CAMERA.clone();
+    if (!directorRef.current) return;
+    flownToRef.current = null;
+    flyToOverview(directorRef.current, motionRef.current);
   };
 
   if (unavailable) {

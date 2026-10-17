@@ -7,10 +7,6 @@ export function setAuthToken(token) {
   authToken = token;
 }
 
-export function getAuthToken() {
-  return authToken;
-}
-
 // Called when a request made with a token comes back 401 (expired, revoked or deactivated).
 export function onUnauthorized(handler) {
   unauthorizedHandler = handler;

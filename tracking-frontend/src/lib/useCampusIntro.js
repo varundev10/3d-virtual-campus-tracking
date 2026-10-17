@@ -18,7 +18,7 @@ const SETTLED = ['done', 'failed', 'skipped'];
 function loadFonts() {
   if (!document.fonts?.load) return Promise.resolve('done');
   const loads = Promise.allSettled([
-    document.fonts.load('600 20px "Space Grotesk"'),
+    document.fonts.load('400 20px "Instrument Serif"'),
     document.fonts.load('500 16px "Inter"'),
   ]).then(() => 'done');
   const timeout = new Promise((resolve) => { window.setTimeout(() => resolve('timeout'), STEP_TIMEOUT_MS); });

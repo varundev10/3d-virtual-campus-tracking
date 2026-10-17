@@ -41,7 +41,7 @@ function PingHistory({ users, nameFor }) {
     <section className="card" aria-labelledby="history-title">
       <header className="card-header">
         <div>
-          <h3 id="history-title">Location ping history</h3>
+          <h2 id="history-title">Location ping history</h2>
           <p>Every stored ping, newest first.</p>
         </div>
       </header>
@@ -207,9 +207,8 @@ export default function AdminTracking() {
                   type="button"
                   className="icon-button"
                   onClick={toggleSceneMode}
-                  aria-pressed={sceneMode === 'day'}
-                  aria-label={sceneMode === 'day' ? 'Switch to night lighting' : 'Switch to day lighting'}
-                  title={sceneMode === 'day' ? 'Night mode' : 'Day mode'}
+                  aria-label={sceneMode === 'day' ? 'Switch to dark theme' : 'Switch to light theme'}
+                  title={sceneMode === 'day' ? 'Dark theme' : 'Light theme'}
                 >
                   <Icon name={sceneMode === 'day' ? 'moon' : 'sun'} size={18} />
                 </button>
@@ -230,7 +229,7 @@ export default function AdminTracking() {
           </div>
 
           <section className="card positions-card" aria-labelledby="positions-title">
-            <header className="card-header"><h3 id="positions-title">Current positions</h3></header>
+            <header className="card-header"><h2 id="positions-title">Current positions</h2></header>
             {latest.loading && !latest.data && <Spinner label="Loading positions" />}
             {latest.data && visibleList.length === 0 && (
               <EmptyState icon="locate" title="No one is sharing a location">

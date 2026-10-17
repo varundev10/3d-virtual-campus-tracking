@@ -2,16 +2,17 @@ import { locationToScenePoint } from './campus.js';
 
 // Mirrors CampusLocation.Category on the backend. Colors follow a fixed categorical order;
 // the category name is always shown as text too, so identity never relies on color alone.
-// Steps are the dark-surface variants of each hue (validated >= 3:1 on the midnight UI).
+// Mid-tone steps chosen to hold at least 3:1 on both the burgundy and the ivory surfaces, and none sits near gold,
+// which is reserved for selection and live state.
 export const LOCATION_CATEGORIES = [
-  { value: 'ACADEMIC_BLOCK', label: 'Academic block', color: '#3987e5' },
-  { value: 'CLASSROOM', label: 'Classroom', color: '#d95926' },
-  { value: 'LAB', label: 'Lab', color: '#199e70' },
-  { value: 'LIBRARY', label: 'Library', color: '#c98500' },
-  { value: 'DEPARTMENT', label: 'Department', color: '#d55181' },
-  { value: 'ADMINISTRATION', label: 'Administration', color: '#008300' },
-  { value: 'HOSTEL', label: 'Hostel', color: '#9085e9' },
-  { value: 'FACILITY', label: 'Facility', color: '#e66767' },
+  { value: 'ACADEMIC_BLOCK', label: 'Academic block', color: '#4f86d4' },
+  { value: 'CLASSROOM', label: 'Classroom', color: '#d46a28' },
+  { value: 'LAB', label: 'Lab', color: '#238f78' },
+  { value: 'LIBRARY', label: 'Library', color: '#9a6fe0' },
+  { value: 'DEPARTMENT', label: 'Department', color: '#d9548a' },
+  { value: 'ADMINISTRATION', label: 'Administration', color: '#7c8ca3' },
+  { value: 'HOSTEL', label: 'Hostel', color: '#7d8c26' },
+  { value: 'FACILITY', label: 'Facility', color: '#c4473f' },
 ];
 
 const byValue = Object.fromEntries(LOCATION_CATEGORIES.map((c) => [c.value, c]));
@@ -21,7 +22,7 @@ export function categoryLabel(value) {
 }
 
 export function categoryColor(value) {
-  return byValue[value]?.color ?? '#8090ab';
+  return byValue[value]?.color ?? '#8a7378';
 }
 
 // Converts API campus locations into the zone shape CampusScene renders.

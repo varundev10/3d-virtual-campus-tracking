@@ -3,6 +3,10 @@ import L from 'leaflet';
 import { CAMPUS_GEOFENCE, UCER_CENTER } from '../lib/campus.js';
 import { categoryColor } from '../lib/locationCategories.js';
 
+// Mirror --gold and --burgundy in styles/tokens.css: the selection, route and boundary colours.
+const GOLD = '#d7b477';
+const BURGUNDY = '#210c13';
+
 const markerIcon = L.divIcon({
   className: 'campus-marker',
   html: '<span></span>',
@@ -55,10 +59,11 @@ export default function CampusMap({
     }).addTo(map);
 
     L.polygon(CAMPUS_GEOFENCE, {
-      color: '#22d3ee',
+      color: GOLD,
       weight: 2,
-      fillColor: '#22d3ee',
-      fillOpacity: 0.06,
+      dashArray: '6 6',
+      fillColor: GOLD,
+      fillOpacity: 0.05,
       interactive: false,
     }).addTo(map);
 
@@ -87,9 +92,9 @@ export default function CampusMap({
       const selected = place.id === selectedPlaceId;
       const marker = L.circleMarker([place.latitude, place.longitude], {
         radius: selected ? 10 : 7,
-        color: selected ? '#cffafe' : '#0c1424',
-        weight: 2,
-        fillColor: selected ? '#22d3ee' : categoryColor(place.category),
+        color: selected ? BURGUNDY : '#faf3eb',
+        weight: selected ? 3 : 2,
+        fillColor: selected ? GOLD : categoryColor(place.category),
         fillOpacity: 1,
       });
       marker.bindTooltip(escapeHtml(place.name), { direction: 'top', permanent: selected });
@@ -110,10 +115,10 @@ export default function CampusMap({
     if (route?.from && route?.to) {
       routeRef.current = L.polyline(
         [[route.from.latitude, route.from.longitude], [route.to.latitude, route.to.longitude]],
-        { color: '#67e8f9', weight: 3, dashArray: '8 6', interactive: false },
+        { color: mode === 'day' ? BURGUNDY : GOLD, weight: 3, dashArray: '8 6', interactive: false },
       ).addTo(map);
     }
-  }, [route]);
+  }, [route, mode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -122,7 +127,7 @@ export default function CampusMap({
     pickedRef.current = null;
     if (pickedPoint && Number.isFinite(pickedPoint.latitude) && Number.isFinite(pickedPoint.longitude)) {
       pickedRef.current = L.circleMarker([pickedPoint.latitude, pickedPoint.longitude], {
-        radius: 9, color: '#cffafe', weight: 3, fillColor: '#22d3ee', fillOpacity: 1,
+        radius: 9, color: BURGUNDY, weight: 3, fillColor: GOLD, fillOpacity: 1,
       }).addTo(map);
     }
   }, [pickedPoint]);

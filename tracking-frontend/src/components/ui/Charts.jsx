@@ -32,7 +32,7 @@ export function ChartCard({ title, subtitle, rows, labelHeader, valueHeader, emp
     <section className="card chart-card">
       <header className="card-header">
         <div>
-          <h3>{title}</h3>
+          <h2>{title}</h2>
           {subtitle && <p>{subtitle}</p>}
         </div>
         {hasData && (
@@ -65,7 +65,8 @@ export function ColumnChart({ rows, valueLabel }) {
 
   const height = 220;
   const pad = { top: 16, right: 8, bottom: 28, left: 40 };
-  const max = niceMax(Math.max(...rows.map((r) => r.value)));
+  const peak = Math.max(...rows.map((r) => r.value));
+  const max = niceMax(peak);
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
   const band = plotW / rows.length;
@@ -90,12 +91,12 @@ export function ColumnChart({ rows, valueLabel }) {
           const h = (row.value / max) * plotH;
           const x = pad.left + i * band + (band - barW) / 2;
           const y = pad.top + plotH - h;
-          const r = Math.min(4, h);
+          const r = Math.min(2, h);
           return (
             <g key={row.label}>
               {h > 0 && (
                 <path
-                  className="chart-bar"
+                  className={`chart-bar ${row.value === peak ? 'is-max' : ''}`}
                   d={`M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + barW - r} Q${x + barW},${y} ${x + barW},${y + r} V${y + h} Z`}
                 />
               )}
@@ -133,7 +134,7 @@ export function BarList({ rows }) {
         <li key={row.label} title={`${row.label}: ${formatNumber(row.value)}`}>
           <span className="bar-label">{row.label}</span>
           <span className="bar-track">
-            <span className="bar-fill" style={{ width: `${Math.max(2, (row.value / max) * 100)}%` }} />
+            <span className={`bar-fill ${row.value === max ? 'is-max' : ''}`} style={{ width: `${Math.max(2, (row.value / max) * 100)}%` }} />
           </span>
           <span className="bar-value">{formatNumber(row.value)}</span>
         </li>

@@ -1,23 +1,31 @@
 import * as THREE from 'three';
 
-const LABEL_SIZE = { normal: [18, 4.5], selected: [22, 5.5] };
+const LABEL_SIZE = { normal: [18, 4.5], selected: [20, 5] };
 
-// Glass "HUD tag" label. Night: dark plate with a cyan hairline. Day: frosted light plate with a teal hairline.
-// Selected: solid cyan in both modes.
+// Annotation label: a mono-caps pill, like a tag on an instrument panel. Night: burgundy glass with a gold hairline.
+// Day: ivory paper with a burgundy hairline. The selected label inverts (solid gold at night, solid burgundy by day),
+// matching the building.
 const STYLES = {
   night: {
-    fill: 'rgba(7, 13, 26, 0.84)', stroke: 'rgba(34, 211, 238, 0.55)', text: '#e8f0ff',
+    fill: 'rgba(33, 12, 19, 0.9)', stroke: 'rgba(215, 180, 119, 0.6)', text: '#faf3eb',
   },
   day: {
-    fill: 'rgba(255, 255, 255, 0.9)', stroke: 'rgba(14, 116, 144, 0.6)', text: '#0b1424',
+    fill: 'rgba(255, 252, 248, 0.95)', stroke: 'rgba(33, 12, 19, 0.42)', text: '#210c13',
   },
-  selected: {
-    fill: 'rgba(34, 211, 238, 0.96)', stroke: 'rgba(207, 250, 254, 0.95)', text: '#031018',
+  selectedNight: {
+    fill: '#d7b477', stroke: '#e6c98f', text: '#210c13',
+  },
+  selectedDay: {
+    fill: '#210c13', stroke: '#d7b477', text: '#faf3eb',
   },
 };
 
+export const LABEL_FONT = '500 40px "JetBrains Mono", ui-monospace, Consolas, monospace';
+
 export function createLabelTexture(text, { mode = 'night', selected = false } = {}) {
-  const style = selected ? STYLES.selected : (STYLES[mode] ?? STYLES.night);
+  const style = selected
+    ? (mode === 'day' ? STYLES.selectedDay : STYLES.selectedNight)
+    : (STYLES[mode] ?? STYLES.night);
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 128;
@@ -26,7 +34,7 @@ export function createLabelTexture(text, { mode = 'night', selected = false } = 
   const w = canvas.width - inset * 2;
   const h = canvas.height - inset * 2;
   context.beginPath();
-  if (context.roundRect) context.roundRect(inset, inset, w, h, 26);
+  if (context.roundRect) context.roundRect(inset, inset, w, h, h / 2);
   else context.rect(inset, inset, w, h);
   context.fillStyle = style.fill;
   context.fill();
@@ -34,10 +42,11 @@ export function createLabelTexture(text, { mode = 'night', selected = false } = 
   context.strokeStyle = style.stroke;
   context.stroke();
   context.fillStyle = style.text;
-  context.font = '600 46px "Space Grotesk", Inter, system-ui, sans-serif';
+  context.font = LABEL_FONT;
+  if ('letterSpacing' in context) context.letterSpacing = '3px';
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  context.fillText(text, canvas.width / 2, canvas.height / 2 + 2, w - 40);
+  context.fillText(text.toUpperCase(), canvas.width / 2, canvas.height / 2 + 2, w - 64);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
@@ -70,9 +79,10 @@ const clamp = THREE.MathUtils.clamp;
 
 // Keeps labels legible without clutter: they grow a little with distance, fade when the camera is far away
 // (but never vanish, so places stay discoverable) and soften when the camera is right on top of them.
-export function updateLabelDistance(sprite, selected, cameraDistance) {
+// `hover` (0..1) brightens and enlarges a label slightly; `dim` (0..1) recedes the labels of unselected places.
+export function updateLabelDistance(sprite, selected, cameraDistance, { hover = 0, dim = 0 } = {}) {
   const [baseW, baseH] = selected ? LABEL_SIZE.selected : LABEL_SIZE.normal;
-  const scale = clamp(cameraDistance / 120, 0.65, 1.4);
+  const scale = clamp(cameraDistance / 120, 0.65, 1.4) * (1 + 0.08 * hover);
   sprite.scale.set(baseW * scale, baseH * scale, 1);
   if (selected) {
     sprite.material.opacity = 1;
@@ -80,5 +90,6 @@ export function updateLabelDistance(sprite, selected, cameraDistance) {
   }
   const far = clamp(1 - (cameraDistance - 150) / 110, 0.3, 1);
   const near = cameraDistance < 30 ? clamp((cameraDistance - 12) / 18, 0.2, 1) : 1;
-  sprite.material.opacity = far * near;
+  const base = far * near * (1 - 0.5 * dim);
+  sprite.material.opacity = base + (1 - base) * hover;
 }

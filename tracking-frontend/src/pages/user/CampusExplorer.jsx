@@ -3,6 +3,7 @@ import CampusScene from '../../components/CampusScene.jsx';
 import CampusMap from '../../components/CampusMap.jsx';
 import CinematicIntro from '../../components/CinematicIntro.jsx';
 import GpsStatusPanel from '../../components/GpsStatusPanel.jsx';
+import PlaceInfoPanel from '../../components/PlaceInfoPanel.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/States.jsx';
 import { api } from '../../lib/api.js';
@@ -10,13 +11,14 @@ import { useAuth } from '../../lib/auth.jsx';
 import { useAsync } from '../../lib/useAsync.js';
 import { useCampusGeolocation } from '../../lib/useCampusGeolocation.js';
 import { useCampusIntro } from '../../lib/useCampusIntro.js';
+import { useMediaQuery } from '../../lib/useMediaQuery.js';
 import { hasPlayedIntro } from '../../lib/introSession.js';
 import { prefersReducedMotion } from '../../lib/quality.js';
 import { isWebGLAvailable } from '../../scene/webgl.js';
 import { useRouter } from '../../lib/router.jsx';
 import { categoryColor, categoryLabel, locationsToZones, matchesSearch } from '../../lib/locationCategories.js';
 import {
-  bearingDegrees, compassDirection, distanceMeters, formatCoordinate, formatDistance, osmWalkingRouteUrl, walkingMinutes,
+  bearingDegrees, compassDirection, distanceMeters, formatDistance, osmWalkingRouteUrl, walkingMinutes,
 } from '../../lib/geo.js';
 import { pushRecentDestination } from '../../lib/recentDestinations.js';
 import { DEFAULT_CAMPUS_MODEL_URL } from '../../lib/modelConfig.js';
@@ -47,7 +49,13 @@ function NavigationCard({ destination, position, geo, onEnd }) {
           <div><span>Walk</span><strong>~{walkingMinutes(meters)} min</strong></div>
         </div>
       )}
-      <p className="muted small">Straight-line guidance shown on the 3D view and map. Paths and building entrances are not mapped in this system, so use the walking route for turn-by-turn directions.</p>
+      <p className="muted small">
+        Straight-line guidance from your live GPS position, shown on the 3D view and map; a different starting point cannot be chosen.
+        Paths and building entrances are not mapped in this system, so use the walking route for turn-by-turn directions.
+      </p>
+      {!position.insideCampus && (
+        <p className="muted small" role="status">You are outside the campus boundary, so the 3D view does not draw the line. The distance above is still measured from where you are.</p>
+      )}
       <div className="row-actions">
         <a className="btn btn-secondary btn-sm" href={osmWalkingRouteUrl(position, destination)} target="_blank" rel="noreferrer">
           <Icon name="external" size={16} /> Walking route (OpenStreetMap)
@@ -141,6 +149,35 @@ export default function CampusExplorer() {
     navigate(`/app/explore${params.toString() ? `?${params}` : ''}`, { replace: true });
   }, [navigate]);
 
+  // Camera commands for the 3D scene. Choosing the already-selected place again re-centres it; "Back to overview"
+  // clears the selection AND flies home, whereas plain deselecting leaves the camera where the user put it.
+  const [overviewTick, setOverviewTick] = useState(0);
+  const [refocusTick, setRefocusTick] = useState(0);
+  const selectPlace = useCallback((code) => {
+    if (code && code === selectedCode) setRefocusTick((n) => n + 1);
+    select(code);
+  }, [select, selectedCode]);
+  const backToOverview = useCallback(() => {
+    select(null);
+    setOverviewTick((n) => n + 1);
+  }, [select]);
+  // On narrow screens the details live inside the bottom sheet; otherwise they float over the scene.
+  const compact = useMediaQuery('(max-width: 920px)');
+
+  // Esc clears the selection (unless a dialog such as the command palette is open, or the user is typing).
+  useEffect(() => {
+    if (!selectedCode || intro.active) return undefined;
+    const onKey = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (document.querySelector('dialog[open]')) return;
+      const tag = event.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || event.target.isContentEditable) return;
+      select(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedCode, intro.active, select]);
+
   const startNavigation = (location) => {
     setDestinationCode(location.code);
     pushRecentDestination(user.id, location.code);
@@ -157,9 +194,78 @@ export default function CampusExplorer() {
     () => (position && destination ? { from: position, to: destination } : null),
     [position, destination],
   );
+  // The 3D scene keeps positions inside the campus plane, so for someone off campus a line there would start at
+  // the wrong place. The map and the guidance card use the real position and always show it.
+  const sceneRoute = useMemo(() => (route && route.from.insideCampus ? route : null), [route]);
+
+  // Choosing a place from the list as a destination also selects it, so the card and the camera follow.
+  const navigateToPlace = (location) => {
+    if (location.code !== selectedCode) select(location.code);
+    startNavigation(location);
+  };
+
+  // Keyboard use of the search box and the result list. Arrow keys move focus (real focus, so the usual focus ring
+  // shows): Down from the box enters the list, Up from the first row returns, Right/Left switch between a row's
+  // "show it" and "navigate" buttons. Enter in the box picks the first match.
+  const listRef = useRef(null);
+  const focusRow = (index, navigateButton = false) => {
+    const row = listRef.current?.children[index];
+    row?.querySelector(navigateButton ? '.result-nav' : '.result-item')?.focus();
+  };
+  const onSearchKeyDown = (event) => {
+    if (event.key === 'ArrowDown' && results.length) {
+      event.preventDefault();
+      focusRow(0);
+    } else if (event.key === 'Enter' && search.trim() && results.length) {
+      event.preventDefault();
+      selectPlace(results[0].code);
+    } else if (event.key === 'Escape' && search) {
+      event.preventDefault();
+      setSearch('');
+    }
+  };
+  const onListKeyDown = (event) => {
+    const rows = [...listRef.current.children];
+    const index = rows.indexOf(event.target.closest('li'));
+    if (index < 0 || event.altKey || event.ctrlKey || event.metaKey) return;
+    const onNavigate = event.target.classList.contains('result-nav');
+    const go = (next) => {
+      event.preventDefault();
+      focusRow(Math.max(0, Math.min(next, rows.length - 1)), onNavigate);
+    };
+    if (event.key === 'ArrowDown') go(index + 1);
+    else if (event.key === 'Home') go(0);
+    else if (event.key === 'End') go(rows.length - 1);
+    else if (event.key === 'ArrowUp') {
+      if (index === 0) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      } else go(index - 1);
+    } else if (event.key === 'ArrowRight' && !onNavigate) {
+      event.preventDefault();
+      focusRow(index, true);
+    } else if (event.key === 'ArrowLeft' && onNavigate) {
+      event.preventDefault();
+      focusRow(index);
+    }
+  };
+
+  const placeInfo = selected && (
+    <PlaceInfoPanel
+      place={selected}
+      position={position}
+      navigating={destinationCode === selected.code}
+      view={view}
+      onDeselect={() => select(null)}
+      onOverview={backToOverview}
+      onNavigate={() => startNavigation(selected)}
+      onToggleView={() => setView(view === '3d' ? 'map' : '3d')}
+    />
+  );
 
   return (
     <div className={`explorer ${panelOpen ? 'panel-open' : 'panel-closed'} ${intro.active ? 'intro-active' : ''}`}>
+      <h1 className="sr-only">Campus explorer</h1>
       <section className="explorer-viewer card" aria-label="Campus view">
         <div className="viewer-toolbar" inert={intro.active}>
           <div className="segmented-control" role="tablist" aria-label="View">
@@ -175,9 +281,8 @@ export default function CampusExplorer() {
             type="button"
             className="icon-button"
             onClick={toggleSceneMode}
-            aria-pressed={sceneMode === 'day'}
-            aria-label={sceneMode === 'day' ? 'Switch to night lighting' : 'Switch to day lighting'}
-            title={sceneMode === 'day' ? 'Night mode' : 'Day mode'}
+            aria-label={sceneMode === 'day' ? 'Switch to dark theme' : 'Switch to light theme'}
+            title={sceneMode === 'day' ? 'Dark theme' : 'Light theme'}
           >
             <Icon name={sceneMode === 'day' ? 'moon' : 'sun'} size={18} />
           </button>
@@ -202,16 +307,18 @@ export default function CampusExplorer() {
               onModelStatus={setModelStatus}
               zones={zones}
               selectedZoneId={selectedCode}
-              onSelectZone={select}
-              route={route}
+              onSelectZone={selectPlace}
+              route={sceneRoute}
               mode={sceneMode}
               intro={intro.sceneIntro}
               onReady={handleSceneReady}
               onIntroEnd={intro.onSceneIntroEnd}
               showControls={!intro.active}
-              label="Interactive 3D campus. Drag to rotate, scroll to zoom, click a building label to select it."
+              overviewSignal={overviewTick}
+              refocusSignal={refocusTick}
+              label="Interactive 3D campus. Drag to rotate, scroll to zoom, hover a building to highlight it and click to select it."
             />
-            {webgl && <p className="viewer-hint"><Icon name="compass" size={14} /> Drag to rotate · scroll or pinch to zoom · click a label to select</p>}
+            {webgl && <p className="viewer-hint"><Icon name="compass" size={14} /> Drag to rotate · scroll or pinch to zoom · click a building to select</p>}
           </div>
           <div className={`viewer-layer ${view === 'map' ? 'visible' : ''}`}>
             <CampusMap
@@ -239,6 +346,8 @@ export default function CampusExplorer() {
         </div>
       </section>
 
+      {!compact && selected && placeInfo}
+
       <aside className="explorer-panel" id="explorer-panel" aria-label="Campus guide" inert={intro.active}>
         <button type="button" className="panel-handle" onClick={() => setPanelOpen((v) => !v)} aria-expanded={panelOpen} aria-controls="explorer-panel">
           {panelOpen ? 'Hide guide' : (destination ? `Navigating to ${destination.name}` : selected ? selected.name : 'Find a place & your location')}
@@ -246,31 +355,7 @@ export default function CampusExplorer() {
 
         {destination && <NavigationCard destination={destination} position={position} geo={geo} onEnd={() => setDestinationCode(null)} />}
 
-        {selected && (
-          <section className="card location-detail" aria-labelledby="loc-title">
-            <header className="card-header">
-              <div>
-                <span className="category-tag"><span className="swatch" style={{ background: categoryColor(selected.category) }} />{categoryLabel(selected.category)}</span>
-                <h2 id="loc-title">{selected.name}</h2>
-                <p className="mono">{selected.code}</p>
-              </div>
-              <button type="button" className="icon-button" onClick={() => select(null)} aria-label="Close location details"><Icon name="close" /></button>
-            </header>
-            {selected.description && <p>{selected.description}</p>}
-            <dl className="detail-list two-col">
-              <div><dt>Coordinates</dt><dd>{formatCoordinate(selected.latitude)}, {formatCoordinate(selected.longitude)}</dd></div>
-              {position && <div><dt>From you</dt><dd>{formatDistance(distanceMeters(position, selected))} {compassDirection(bearingDegrees(position, selected))}</dd></div>}
-            </dl>
-            <div className="row-actions">
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => startNavigation(selected)} disabled={destinationCode === selected.code}>
-                <Icon name="navigation" size={16} /> {destinationCode === selected.code ? 'Navigating' : 'Navigate here'}
-              </button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setView(view === '3d' ? 'map' : '3d')}>
-                Show on {view === '3d' ? 'map' : '3D view'}
-              </button>
-            </div>
-          </section>
-        )}
+        {compact && selected && placeInfo}
 
         <section className="card search-card" aria-labelledby="search-title">
           <h2 id="search-title" className="card-title">Find a place</h2>
@@ -283,6 +368,7 @@ export default function CampusExplorer() {
               aria-label="Search campus locations"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={onSearchKeyDown}
             />
             <kbd aria-hidden="true">/</kbd>
           </div>
@@ -313,16 +399,26 @@ export default function CampusExplorer() {
             <EmptyState icon="search" title="No matches">Try a different name, code or category.</EmptyState>
           )}
           {results.length > 0 && (
-            <ul className="result-list">
+            <ul className="result-list" ref={listRef} onKeyDown={onListKeyDown}>
               {results.map((location) => (
-                <li key={location.id}>
-                  <button type="button" className={`result-item ${location.code === selectedCode ? 'active' : ''}`} onClick={() => select(location.code)} aria-current={location.code === selectedCode ? 'true' : undefined}>
+                <li key={location.id} className="result-row">
+                  <button type="button" className={`result-item ${location.code === selectedCode ? 'active' : ''}`} onClick={() => selectPlace(location.code)} aria-current={location.code === selectedCode ? 'true' : undefined}>
                     <span className="swatch" style={{ background: categoryColor(location.category) }} />
                     <span className="result-text">
                       <strong>{location.name}</strong>
                       <small>{categoryLabel(location.category)} · {location.code}</small>
                     </span>
                     {position && <span className="result-distance">{formatDistance(distanceMeters(position, location))}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button result-nav"
+                    onClick={() => navigateToPlace(location)}
+                    disabled={destinationCode === location.code}
+                    aria-label={destinationCode === location.code ? `Navigating to ${location.name}` : `Navigate to ${location.name}`}
+                    title={destinationCode === location.code ? 'Navigating here' : 'Navigate here'}
+                  >
+                    <Icon name={destinationCode === location.code ? 'check' : 'navigation'} size={16} />
                   </button>
                 </li>
               ))}

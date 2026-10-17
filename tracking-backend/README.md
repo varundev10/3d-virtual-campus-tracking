@@ -24,7 +24,6 @@ Comprehensive backend for the Smart Campus Tracking System. This Spring Boot app
 	- `repository` - Spring Data repositories
 	- `model`/`dto` - domain models and DTOs
 - `src/main/resources/application.properties` - runtime configuration
-- `test.html` - small WebSocket test helper
 
 ## Prerequisites
 - Java 17 or newer
@@ -78,6 +77,44 @@ Build a jar:
 java -jar target/*.jar
 ```
 
+## Authentication and roles
+All `/api/**` endpoints except `POST /api/auth/login` and `POST /api/auth/register` need an
+`Authorization: Bearer <jwt>` header. Tokens are HS256 JWTs issued by the backend; on every request the
+user's role and active status are re-read from the database, so role changes and deactivation apply immediately.
+
+| Role | Can do |
+|---|---|
+| STUDENT / FACULTY | Read campus locations, read own user/pings/attendance, post own location pings, edit own name/password |
+| ADMIN | Everything above plus `/api/admin/**`, user management, campus-location writes, attendance marking, the `/topic/locations` live feed |
+
+Self-registration always creates a STUDENT. Admins are created from environment variables at startup
+(nothing is created when they are absent) and can then promote other users.
+
+Environment variables (referenced from `application.properties`):
+
+| Variable | Purpose |
+|---|---|
+| `APP_JWT_SECRET` | JWT signing secret, at least 32 characters. If unset, a random one is generated and sessions end on restart. |
+| `APP_JWT_EXPIRY_MINUTES` | Token lifetime, default 480 |
+| `APP_ADMIN_EMAIL`, `APP_ADMIN_PASSWORD`, `APP_ADMIN_NAME` | Bootstrap admin. Created (or promoted) at startup; an existing password is never overwritten. |
+| `APP_CORS_ORIGINS` | Comma-separated allowed browser origins, default `http://localhost:5173,http://127.0.0.1:5173` |
+
+Example (PowerShell):
+```powershell
+$env:APP_JWT_SECRET = "<long random string>"
+$env:APP_ADMIN_EMAIL = "admin@your-campus.edu"
+$env:APP_ADMIN_PASSWORD = "<strong password>"
+./mvnw spring-boot:run
+```
+
+Users created before authentication existed have no password; an admin can set one from the Users page.
+Location pings outside the campus geofence (`GeofenceService`, mirrored from the frontend polygon) are rejected with 422 and never stored.
+
+### Running without MySQL
+`./mvnw spring-boot:test-run` starts the app against an in-memory H2 database using the test profile
+(`src/test/resources/application-test.properties`, bootstrap admin `admin@test.local` / `AdminPass123`).
+This is for local demos only; data is lost on shutdown and those credentials exist only on the test classpath.
+
 ## HTTP API (examples)
 The project exposes REST endpoints under `/api` (controllers are in `controller` package). Example endpoints (adjust paths if code differs):
 
@@ -107,12 +144,9 @@ Check the controller classes in `src/main/java/com/campus/tracking/controller` f
 - WebSocket endpoint: `/ws` (STOMP)
 - Topic for location broadcasts (example): `/topic/locations`
 
-Quick test using the included `test.html`:
-1. Open `test.html` in a browser.
-2. Connect to `ws://localhost:8080/ws`.
-3. Subscribe to `/topic/locations` to receive live location updates.
-
-You can also use `wscat` or a STOMP client to test.
+The STOMP `CONNECT` frame must carry the same JWT used for REST calls, as an `Authorization: Bearer <token>` header
+(get one from `POST /api/auth/login`). Only administrators may subscribe to `/topic/locations`. To test, use any STOMP
+client with that header, or the admin Tracking page of the frontend, which connects this way.
 
 ## Data model overview
 - `User` - user metadata

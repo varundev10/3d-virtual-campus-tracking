@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import Icon from '../components/ui/Icon.jsx';
 import CommandPalette from '../components/CommandPalette.jsx';
+import ThemeToggle from '../components/ui/ThemeToggle.jsx';
 import { Link, useRouter } from '../lib/router.jsx';
 import { useAuth } from '../lib/auth.jsx';
+import { useDocumentTitle } from '../lib/useDocumentTitle.js';
 
 export const ADMIN_NAV = [
   { to: '/admin', label: 'Overview', icon: 'home', exact: true },
@@ -26,6 +28,7 @@ function readCollapsed() {
 export default function AdminLayout({ title, actions, children }) {
   const { path } = useRouter();
   const { user, logout } = useAuth();
+  useDocumentTitle(title);
   // The mobile drawer counts as open only on the route it was opened from, so navigating closes it.
   const [menuOpenAt, setMenuOpenAt] = useState(null);
   if (menuOpenAt !== null && menuOpenAt !== path) setMenuOpenAt(null);
@@ -51,7 +54,7 @@ export default function AdminLayout({ title, actions, children }) {
         <div className="brand-lockup">
           <span className="brand-mark">UC</span>
           <div>
-            <h1>UCER Smart Campus</h1>
+            <strong className="brand-name">UCER Smart Campus</strong>
             <p>Control center</p>
           </div>
         </div>
@@ -113,10 +116,11 @@ export default function AdminLayout({ title, actions, children }) {
           </button>
           <div className="admin-title-wrap">
             <span className="admin-crumb" aria-hidden="true">Admin console</span>
-            <h2 className="admin-title">{title}</h2>
+            <h1 className="admin-title">{title}</h1>
           </div>
           <div className="admin-actions">
             <CommandPalette pages={ADMIN_NAV} />
+            <ThemeToggle />
             {actions}
           </div>
         </header>

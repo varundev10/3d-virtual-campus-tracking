@@ -72,7 +72,7 @@ export default function AdminOverview() {
           <div className="grid-2">
             <section className="card" aria-labelledby="alerts-title">
               <header className="card-header">
-                <h3 id="alerts-title">Latest alerts</h3>
+                <h2 id="alerts-title">Latest alerts</h2>
                 <Link to="/admin/reports" className="btn btn-ghost btn-sm">All reports</Link>
               </header>
               {alerts.error && <ErrorState message={alerts.error.message} onRetry={alerts.reload} />}
@@ -92,7 +92,7 @@ export default function AdminOverview() {
             </section>
 
             <section className="card" aria-labelledby="shortcuts-title">
-              <header className="card-header"><h3 id="shortcuts-title">Shortcuts</h3></header>
+              <header className="card-header"><h2 id="shortcuts-title">Shortcuts</h2></header>
               <ul className="link-list">
                 <li><Link to="/admin/users"><Icon name="users" /> <span>Manage users and roles</span></Link></li>
                 <li><Link to="/admin/locations"><Icon name="building" /> <span>Add or edit campus locations</span></Link></li>

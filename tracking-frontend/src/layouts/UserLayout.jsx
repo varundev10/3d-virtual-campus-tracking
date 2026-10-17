@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../components/ui/Icon.jsx';
 import CommandPalette from '../components/CommandPalette.jsx';
+import ThemeToggle from '../components/ui/ThemeToggle.jsx';
 import { Link, useRouter } from '../lib/router.jsx';
 import { useAuth } from '../lib/auth.jsx';
+import { useDocumentTitle } from '../lib/useDocumentTitle.js';
 
 const NAV = [
   { to: '/app', label: 'Dashboard', icon: 'home', exact: true },
@@ -78,6 +80,7 @@ export default function UserLayout({ children }) {
   const { path } = useRouter();
   const { user, logout } = useAuth();
   const immersive = IMMERSIVE.includes(path.replace(/\/+$/, ''));
+  useDocumentTitle(NAV.find((item) => (item.exact ? path === item.to : path.startsWith(item.to)))?.label);
 
   return (
     <div className={`user-shell ${immersive ? 'immersive' : ''}`}>
@@ -103,6 +106,7 @@ export default function UserLayout({ children }) {
         </nav>
         <div className="header-tools">
           <CommandPalette pages={NAV} />
+          <ThemeToggle />
           <ProfileMenu user={user} onLogout={logout} />
         </div>
       </header>

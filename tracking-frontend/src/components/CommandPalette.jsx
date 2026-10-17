@@ -18,6 +18,17 @@ export default function CommandPalette({ pages }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
+  // Every opening starts with an empty box. The reset happens while rendering (React's supported "reset state when a
+  // value changes" pattern), not in the effect below, so the dialog's first frame never shows the previous query and
+  // keystrokes arriving straight after Ctrl+K cannot land on it.
+  const [shown, setShown] = useState(false);
+  if (open !== shown) {
+    setShown(open);
+    if (open) {
+      setText('');
+      setActive(0);
+    }
+  }
   const [places, setPlaces] = useState({ state: 'idle', data: [], message: null });
   const placesRef = useRef(places);
   placesRef.current = places;
@@ -41,8 +52,6 @@ export default function CommandPalette({ pages }) {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (open && !dialog.open) {
-      setText('');
-      setActive(0);
       dialog.showModal();
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -78,8 +87,8 @@ export default function CommandPalette({ pages }) {
       {
         id: 'action:mode',
         icon: mode === 'day' ? 'moon' : 'sun',
-        label: mode === 'day' ? 'Switch 3D scene to night' : 'Switch 3D scene to day',
-        keywords: 'theme day night light dark mode',
+        label: mode === 'day' ? 'Switch to dark theme' : 'Switch to light theme',
+        keywords: 'theme day night light dark mode burgundy ivory scene',
         run: toggleMode,
       },
       { id: 'action:logout', icon: 'logout', label: 'Sign out', keywords: 'log out logout exit', run: logout },

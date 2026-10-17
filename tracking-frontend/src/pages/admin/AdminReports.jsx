@@ -35,7 +35,7 @@ function AttendanceTable({ range, nameFor, users }) {
 
   return (
     <section className="card" aria-labelledby="att-report-title">
-      <header className="card-header"><h3 id="att-report-title">Attendance records</h3></header>
+      <header className="card-header"><h2 id="att-report-title">Attendance records</h2></header>
       <div className="toolbar">
         <select className="input" aria-label="Filter by status" value={status} onChange={reset(setStatus)}>
           <option value="">All statuses</option>
@@ -79,7 +79,7 @@ function AlertsTable({ range, nameFor }) {
   const alerts = useAsync(() => api.getAlerts({ ...range, page, size: 10 }), [range.from, range.to, page]);
   return (
     <section className="card" aria-labelledby="alert-report-title">
-      <header className="card-header"><h3 id="alert-report-title">Alerts</h3></header>
+      <header className="card-header"><h2 id="alert-report-title">Alerts</h2></header>
       {alerts.loading && !alerts.data && <Spinner label="Loading alerts" />}
       {alerts.error && <ErrorState message={alerts.error.message} onRetry={alerts.reload} />}
       {alerts.data && alerts.data.content.length === 0 && <EmptyState icon="check" title="No alerts in this range" />}

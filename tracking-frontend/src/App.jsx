@@ -3,6 +3,8 @@ import { AuthProvider, homePathFor, isAdmin, useAuth } from './lib/auth.jsx';
 import { ToastProvider } from './components/ui/Toast.jsx';
 import { ErrorState, Spinner } from './components/ui/States.jsx';
 import Icon from './components/ui/Icon.jsx';
+import { useDocumentTitle } from './lib/useDocumentTitle.js';
+import { useAmbientGlow } from './lib/useAmbientGlow.js';
 import { LoginPage, RegisterPage } from './pages/auth/AuthPages.jsx';
 import UserLayout from './layouts/UserLayout.jsx';
 import UserDashboard from './pages/user/UserDashboard.jsx';
@@ -36,6 +38,7 @@ function CenteredPage({ children }) {
 
 function NotFound() {
   const { user } = useAuth();
+  useDocumentTitle('Page not found');
   return (
     <CenteredPage>
       <div className="card status-page">
@@ -50,6 +53,7 @@ function NotFound() {
 // Shown when a signed-in non-admin opens an admin URL. The server rejects admin API calls
 // regardless; this page only explains why nothing loads.
 function AccessDenied() {
+  useDocumentTitle('Admin access required');
   return (
     <CenteredPage>
       <div className="card status-page">
@@ -111,6 +115,7 @@ function Routes() {
 }
 
 export default function App() {
+  useAmbientGlow();
   return (
     <ToastProvider>
       <RouterProvider>

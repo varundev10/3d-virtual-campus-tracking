@@ -56,7 +56,7 @@ const STAR_FRAG = /* glsl */ `
     float d = length(gl_PointCoord - 0.5);
     float a = smoothstep(0.5, 0.1, d) * uOpacity * vTwinkle;
     if (a < 0.01) discard;
-    gl_FragColor = vec4(0.82, 0.9, 1.0, a);
+    gl_FragColor = vec4(0.98, 0.94, 0.88, a);
     #include <colorspace_fragment>
   }
 `;

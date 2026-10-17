@@ -1,0 +1,316 @@
+/* ==========================================================================
+   Design tokens: Paper White x Electric Cobalt x Acid Lime.
+
+   Three colours, three jobs.
+     Cobalt (#4d3cf2)  = do and go: buttons, the active tab, links, structure, the route.
+     Lime   (#c6ff4d)  = selected, live and pop: the selected building and list row, live status, the highlighter.
+     Paper  (#f7f8f4)  = the page, and the type on anything dark.
+   Everything else is a shade of cobalt ink or a tint of paper.
+
+   Elements are "stickers": a solid ink outline and a hard offset shadow that presses flat when you click them.
+
+   Components only read the semantic tokens below, so the whole interface (and the 3D scene, see
+   scene/environment.js) changes world together when data-theme flips between PAPER (light) and COBALT NIGHT (dark).
+   Cobalt blocks (the admin rail, sign-in plate, intro, route card) re-apply their own set, so they stay cobalt in
+   both worlds.
+   ========================================================================== */
+
+/* Tokens that do not change with the theme. */
+:root {
+  /* Type. A quirky variable grotesk for display, Inter for reading, mono for annotation (labels, codes, data). */
+  --display: "Bricolage Grotesque", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+
+  /* The three brand values, for the places that need them literally (the 3D scene mirrors these). */
+  --cobalt: #4d3cf2;
+  --lime: #c6ff4d;
+  --paper: #f7f8f4;
+  --night-ink: #0e0c2e;
+
+  /* Shape. Generous, toy-like corners. */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --bw: 2px;
+
+  /* Type scale */
+  --text-2xs: 0.66rem;
+  --text-xs: 0.72rem;
+  --text-sm: 0.82rem;
+  --text-md: 0.9rem;
+  --text-base: 1rem;
+  --text-lg: 1.3rem;
+  --text-xl: 2.3rem;
+  --text-2xl: 3.2rem;
+  --text-hero: clamp(3.6rem, 11vw, 9rem);
+  --track-tight: -0.03em;
+  --track-label: 0.12em;
+  --leading-tight: 1;
+  --leading-body: 1.6;
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --hud-radius: var(--radius-lg);
+  --hud-inset: 16px;
+  --blur: saturate(140%) blur(14px);
+
+  /* Motion. --ease eases out; --spring overshoots a little, for things that should feel bouncy. */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-instant: 80ms;
+  --dur-fast: 140ms;
+  --dur-med: 240ms;
+  --dur-slow: 340ms;
+  --dur-enter: 520ms;
+  --dur-scene: 900ms;
+  --fast: var(--dur-fast);
+  --med: var(--dur-med);
+
+  /* Stacking layers. Scene layers sit inside the explorer stage; the rest are page-level. */
+  --z-below: -1;
+  --z-scene-fade: 1;
+  --z-scene-hint: 2;
+  --z-scene-controls: 3;
+  --z-scene-panel: 4;
+  --z-scene-toolbar: 5;
+  --z-scene-overlay: 6;
+  --z-admin-topbar: 20;
+  --z-bottom-nav: 30;
+  --z-header: 40;
+  --z-popover: 50;
+  --z-scrim: 50;
+  --z-drawer: 60;
+  --z-skip-link: 100;
+  --z-toast: 1000;
+
+  /* Layout */
+  --header-h: 72px;
+  --bottom-nav-h: 0px;
+  --sidebar-open-w: 264px;
+  --sidebar-rail-w: 80px;
+  --panel-w: 384px;
+  --page-gutter: 40px;
+
+  font-family: var(--font);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* PAPER: the light world, and the default. */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f7f8f4;
+  --surface: #ffffff;
+  --surface-2: #eef0e8;
+  --surface-3: #e2e5da;
+  --field: #ffffff;
+
+  --ink: #0e0c2e;
+  --ink-2: #3a3866;
+  --ink-muted: #5e5c85;
+  --ink-faint: #9a98b8;
+
+  --line: rgba(14, 12, 46, 0.13);
+  --line-soft: rgba(14, 12, 46, 0.07);
+  --line-strong: rgba(14, 12, 46, 0.34);
+  --wash: rgba(14, 12, 46, 0.045);
+  --wash-2: rgba(14, 12, 46, 0.085);
+  --scrim: rgba(21, 14, 96, 0.55);
+
+  /* The sticker: outline colour and hard shadow colour. */
+  --stroke: #0e0c2e;
+  --hard: #0e0c2e;
+  --hard-1: 2px 2px 0 var(--hard);
+  --hard-2: 4px 4px 0 var(--hard);
+  --hard-3: 6px 6px 0 var(--hard);
+
+  /* Cobalt: the primary colour. --accent is a fill (always paired with --accent-ink); --accent-text is cobalt as type. */
+  --brand: #4d3cf2;
+  --accent: #4d3cf2;
+  --accent-2: #3f30dc;
+  --accent-ink: #f7f8f4;
+  --accent-text: #4d3cf2;
+  --accent-soft: rgba(77, 60, 242, 0.09);
+  --accent-soft-2: rgba(77, 60, 242, 0.17);
+  --accent-line: rgba(77, 60, 242, 0.5);
+
+  /* Lime: selected, live, pop. */
+  --pop: #c6ff4d;
+  --pop-2: #d6ff7d;
+  --pop-ink: #0e0c2e;
+  --pop-soft: rgba(198, 255, 77, 0.42);
+
+  /* Status. Lime means on / healthy / present; warning and danger are the only other signals, always with a label. */
+  --good: var(--ink);
+  --good-soft: rgba(198, 255, 77, 0.5);
+  --good-line: rgba(14, 12, 46, 0.4);
+  --warning: #a85a08;
+  --warning-soft: rgba(168, 90, 8, 0.1);
+  --warning-line: rgba(168, 90, 8, 0.45);
+  --danger: #c81e4d;
+  --danger-soft: rgba(200, 30, 77, 0.08);
+  --danger-line: rgba(200, 30, 77, 0.45);
+  --danger-ink: #ffffff;
+  --series-1: var(--accent);
+
+  /* Depth: sticker shadows for things that float; glass-free, flat paper for the rest. */
+  --shadow-float: var(--hard-2);
+  --shadow-pop: 0 14px 40px rgba(21, 14, 96, 0.24);
+  --shadow-modal: 6px 6px 0 var(--hard), 0 30px 80px rgba(21, 14, 96, 0.35);
+
+  /* Floating panels over the 3D stage. */
+  --hud-bg: rgba(255, 255, 255, 0.94);
+  --hud-bg-strong: #ffffff;
+  --hud-border: var(--stroke);
+  --hud-shadow: var(--hard-2);
+
+  /* Page ambience: a dotted notebook grid, and a lime blob that follows the pointer. */
+  --dot: rgba(14, 12, 46, 0.16);
+  --page-glow: rgba(77, 60, 242, 0.07);
+  --page-spot: rgba(198, 255, 77, 0.55);
+
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* COBALT NIGHT: the dark world, also used by the toast. */
+:root[data-theme="dark"],
+.toast {
+  color-scheme: dark;
+
+  --bg: #0f0b3d;
+  --surface: #17124f;
+  --surface-2: #1f1a66;
+  --surface-3: #2a2480;
+  --field: rgba(7, 4, 31, 0.5);
+
+  --ink: #f7f8f4;
+  --ink-2: #d4d3ec;
+  --ink-muted: #a9a7d6;
+  --ink-faint: #7673b0;
+
+  --line: rgba(247, 248, 244, 0.14);
+  --line-soft: rgba(247, 248, 244, 0.08);
+  --line-strong: rgba(247, 248, 244, 0.32);
+  --wash: rgba(247, 248, 244, 0.06);
+  --wash-2: rgba(247, 248, 244, 0.1);
+  --scrim: rgba(6, 3, 30, 0.76);
+
+  --stroke: #f7f8f4;
+  --hard: #4d3cf2;
+  --hard-1: 2px 2px 0 var(--hard);
+  --hard-2: 4px 4px 0 var(--hard);
+  --hard-3: 6px 6px 0 var(--hard);
+
+  --brand: #4d3cf2;
+  --accent: #4d3cf2;
+  --accent-2: #6253f5;
+  --accent-ink: #f7f8f4;
+  --accent-text: #a99fff;
+  --accent-soft: rgba(169, 159, 255, 0.14);
+  --accent-soft-2: rgba(169, 159, 255, 0.24);
+  --accent-line: rgba(169, 159, 255, 0.55);
+
+  --pop: #c6ff4d;
+  --pop-2: #d6ff7d;
+  --pop-ink: #0e0c2e;
+  --pop-soft: rgba(198, 255, 77, 0.18);
+
+  --good: var(--pop);
+  --good-soft: rgba(198, 255, 77, 0.14);
+  --good-line: rgba(198, 255, 77, 0.5);
+  --warning: #ffb454;
+  --warning-soft: rgba(255, 180, 84, 0.13);
+  --warning-line: rgba(255, 180, 84, 0.5);
+  --danger: #ff7a8a;
+  --danger-soft: rgba(255, 122, 138, 0.13);
+  --danger-line: rgba(255, 122, 138, 0.5);
+  --danger-ink: #0e0c2e;
+  --series-1: var(--accent-text);
+
+  --shadow-float: var(--hard-2);
+  --shadow-pop: 0 18px 50px rgba(4, 2, 24, 0.6);
+  --shadow-modal: 6px 6px 0 var(--hard), 0 30px 80px rgba(4, 2, 24, 0.7);
+
+  --hud-bg: rgba(23, 18, 79, 0.92);
+  --hud-bg-strong: #17124f;
+  --hud-border: rgba(247, 248, 244, 0.85);
+  --hud-shadow: var(--hard-2);
+
+  --dot: rgba(247, 248, 244, 0.1);
+  --page-glow: rgba(77, 60, 242, 0.35);
+  --page-spot: rgba(77, 60, 242, 0.55);
+
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* COBALT BLOCKS: surfaces that are cobalt in either world. Lime is the accent here, ink draws the stickers. */
+.admin-sidebar,
+.auth-aside,
+.cine,
+.nav-card {
+  color-scheme: dark;
+
+  --bg: #4d3cf2;
+  --surface: #5a4af4;
+  --surface-2: #6a5cf7;
+  --surface-3: #7a6ef9;
+  --field: rgba(14, 12, 46, 0.32);
+
+  --ink: #f7f8f4;
+  --ink-2: #eceafe;
+  --ink-muted: #ddd9fc;
+  --ink-faint: #b5aef9;
+
+  --line: rgba(247, 248, 244, 0.24);
+  --line-soft: rgba(247, 248, 244, 0.13);
+  --line-strong: rgba(247, 248, 244, 0.5);
+  --wash: rgba(247, 248, 244, 0.1);
+  --wash-2: rgba(247, 248, 244, 0.17);
+  --scrim: rgba(14, 12, 46, 0.7);
+
+  --stroke: #0e0c2e;
+  --hard: #0e0c2e;
+  --hard-1: 2px 2px 0 var(--hard);
+  --hard-2: 4px 4px 0 var(--hard);
+  --hard-3: 6px 6px 0 var(--hard);
+
+  --accent: #c6ff4d;
+  --accent-2: #d6ff7d;
+  --accent-ink: #0e0c2e;
+  --accent-text: #c6ff4d;
+  --accent-soft: rgba(198, 255, 77, 0.18);
+  --accent-soft-2: rgba(198, 255, 77, 0.3);
+  --accent-line: rgba(198, 255, 77, 0.6);
+
+  --good: #c6ff4d;
+  --good-soft: rgba(198, 255, 77, 0.2);
+  --good-line: rgba(198, 255, 77, 0.6);
+
+  --hud-bg: #5a4af4;
+  --hud-bg-strong: #4d3cf2;
+  --hud-border: #0e0c2e;
+  --hud-shadow: var(--hard-2);
+
+  color: var(--ink);
+  background: var(--bg);
+}
