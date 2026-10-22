@@ -881,7 +881,23 @@ kbd {
   animation: toast-in 0.32s var(--ease);
 }
 
-.toast p { flex: 1; font-size: var(--text-md); }
+.toast-body { display: grid; flex: 1; justify-items: start; gap: 10px; }
+.toast p { font-size: var(--text-md); }
+
+/* An optional action under the message (Rave Mode's "Exit rave mode"): a chartreuse pill with jet type. */
+.toast-action {
+  min-height: 44px;
+  padding: 0 18px;
+  border: var(--bw) solid var(--stroke);
+  border-radius: var(--radius-pill);
+  background: var(--pop);
+  color: var(--pop-ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.toast-action:hover { background: var(--pop-2); }
 .toast > .icon { flex: none; margin-top: 1px; color: var(--ink-2); }
 .toast .icon-button { width: 28px; height: 28px; color: var(--ink-muted); }
 .toast-success { border-left-color: var(--accent); }
