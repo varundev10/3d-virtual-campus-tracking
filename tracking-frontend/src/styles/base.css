@@ -45,6 +45,30 @@ body::after {
   background: radial-gradient(360px circle at var(--mx, -30%) var(--my, -30%), var(--page-spot), transparent 68%);
 }
 
+/* Film grain. A 180px SVG feTurbulence tile (--grain, white noise on dark and black on light: see tokens.css), laid over everything at <= 3% so the black reads rich instead of flat.
+   It is larger than the viewport and steps a few pixels at a time (transform only, so it costs no repaint); under
+   reduced motion it simply does not move. pointer-events: none, and it never carries content. */
+html::after {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  background-image: var(--grain);
+  background-size: 180px 180px;
+  opacity: var(--grain-opacity);
+  animation: grain-shift 0.9s steps(1) infinite;
+}
+
+@keyframes grain-shift {
+  0% { transform: translate(0, 0); }
+  17% { transform: translate(-3%, 2%); }
+  33% { transform: translate(2%, -3%); }
+  50% { transform: translate(-2%, -1%); }
+  67% { transform: translate(3%, 3%); }
+  83% { transform: translate(-1%, 2%); }
+}
+
 /* Display type: a quirky, chunky grotesk, set tight. */
 h1, h2, h3 {
   margin: 0;
@@ -88,17 +112,11 @@ button {
   color: var(--pop-ink);
 }
 
-/* Keyboard focus is a bold cobalt ring in the light world, and lime-white in the dark one. */
+/* Keyboard focus is a bold ring in --focus: chartreuse on the dark world, jet where lime would vanish (the light
+   world and solid colour blocks). Blocks that stay dark in either world re-apply the dark set, so they get lime. */
 :focus-visible {
-  outline: 3px solid var(--accent-text);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
-}
-
-.admin-sidebar :focus-visible,
-.auth-aside :focus-visible,
-.cine :focus-visible,
-.nav-card :focus-visible {
-  outline-color: var(--pop);
 }
 
 /* Thin, quiet scrollbars */
@@ -281,4 +299,5 @@ html.theme-fade *::after {
   }
 
   body::after { display: none; }
+  html::after { animation: none; inset: 0; }
 }
