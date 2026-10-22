@@ -4,8 +4,8 @@ import * as THREE from 'three';
 // so nothing snaps: buildings rise and shade on hover, the selected building lights up in gold and ivory, and the rest of the
 // campus recedes into the ground.
 const DEFAULT_PALETTE = {
-  hover: '#d7b477', hoverWall: '#613546', hoverRoof: '#b3945a', outline: '#d7b477',
-  selectWall: '#faf3eb', selectRoof: '#d7b477', dim: '#210c13', dimAmount: 0.55, emissive: 0.2,
+  hover: '#D4FF3F', hoverWall: '#3a3a3a', hoverRoof: '#7a7a7a', outline: '#D4FF3F',
+  selectWall: '#D4FF3F', selectRoof: '#F5F5F2', dim: '#0B0B0B', dimAmount: 0.55, emissive: 0.2,
 };
 
 const colors = {

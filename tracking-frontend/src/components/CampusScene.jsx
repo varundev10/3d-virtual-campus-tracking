@@ -154,21 +154,21 @@ function createPlaceholderCampus() {
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(170, 120),
-    new THREE.MeshStandardMaterial({ color: '#2a1119', roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: '#141414', roughness: 1 }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   group.add(ground);
 
   // Blueprint grid over the ground plane, squashed to the ground's 170 x 120 footprint.
-  const grid = new THREE.GridHelper(170, 34, '#5c4522', '#34171f');
+  const grid = new THREE.GridHelper(170, 34, '#FF2DA8', '#2a2a2a');
   grid.scale.z = 120 / 170;
   grid.position.y = 0.04;
   grid.material.transparent = true;
   grid.material.opacity = 0.7;
   group.add(grid);
 
-  const roadMaterial = new THREE.MeshStandardMaterial({ color: '#3a1b26', roughness: 0.85, metalness: 0.05 });
+  const roadMaterial = new THREE.MeshStandardMaterial({ color: '#070707', roughness: 0.85, metalness: 0.05 });
   const mainRoad = new THREE.Mesh(new THREE.BoxGeometry(150, 0.18, 7), roadMaterial);
   mainRoad.position.set(0, 0.12, 0);
   mainRoad.receiveShadow = true;
@@ -191,7 +191,7 @@ function createPlaceholderCampus() {
       new THREE.Vector3(74, 0.45, 42),
       new THREE.Vector3(-58, 0.45, 52),
     ]),
-    new THREE.LineDashedMaterial({ color: '#d7b477', dashSize: 3, gapSize: 2 }),
+    new THREE.LineDashedMaterial({ color: '#D4FF3F', dashSize: 3, gapSize: 2 }),
   );
   geofenceShape.computeLineDistances();
   group.add(geofenceShape);
@@ -219,7 +219,7 @@ function prepareCampusModel(object) {
     child.receiveShadow = true;
 
     if (!child.material) {
-      child.material = new THREE.MeshStandardMaterial({ color: '#4a2837', roughness: 0.85 });
+      child.material = new THREE.MeshStandardMaterial({ color: '#2b2b2b', roughness: 0.85 });
     }
   });
 }
@@ -231,7 +231,7 @@ function createPin(isCurrent, mode) {
   const group = new THREE.Group();
   const stem = new THREE.Mesh(
     new THREE.CylinderGeometry(0.45, 0.45, 5, 16),
-    new THREE.MeshStandardMaterial({ color: '#7a5a66', metalness: 0.2, roughness: 0.55 }),
+    new THREE.MeshStandardMaterial({ color: '#6e6e6e', metalness: 0.2, roughness: 0.55 }),
   );
   stem.position.y = 2.5;
 
@@ -337,8 +337,8 @@ export default function CampusScene({
     const markers = markersRef.current;
     const zoneObjects = zoneObjectsRef.current;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#210c13');
-    scene.fog = new THREE.Fog('#210c13', 120, 340);
+    scene.background = new THREE.Color('#0B0B0B');
+    scene.fog = new THREE.Fog('#0B0B0B', 120, 340);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.5, 1000);
@@ -398,10 +398,10 @@ export default function CampusScene({
     }
 
     // Lights. Colors and intensities are set per day / night mode by applyEnvironment.
-    const hemi = new THREE.HemisphereLight('#c9a9a0', '#12060b', 0.95);
+    const hemi = new THREE.HemisphereLight('#c4c4c4', '#0B0B0B', 0.95);
     scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight('#f4dcc0', 1.3);
+    const sun = new THREE.DirectionalLight('#ffffff', 1.3);
     sun.position.set(40, 90, 35);
     sun.castShadow = true;
     sun.shadow.camera.left = -100;
@@ -414,7 +414,7 @@ export default function CampusScene({
     sun.shadow.normalBias = 0.5;
     scene.add(sun);
 
-    const rim = new THREE.DirectionalLight('#d7b477', 0.8);
+    const rim = new THREE.DirectionalLight('#FF2DA8', 0.8);
     rim.position.set(-60, 40, -70);
     scene.add(rim);
 
@@ -426,7 +426,7 @@ export default function CampusScene({
     // Land that continues past the campus plane and fades into the horizon through the fog.
     const farGround = new THREE.Mesh(
       new THREE.CircleGeometry(420, 64).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: '#210c13' }),
+      new THREE.MeshBasicMaterial({ color: '#0B0B0B' }),
     );
     farGround.position.y = -0.2;
     farGround.renderOrder = 5; // after the campus plane, so the GPU skips the pixels it already covers

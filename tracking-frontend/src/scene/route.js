@@ -11,16 +11,17 @@ export const ROUTE_Y = 1.2;
 const REVEAL_SECONDS = 1.1;
 const PULSE_TRIPS_PER_SECOND = 0.4;
 
-// The route is gold on the night stage and burgundy on the ivory day model; the travelling pulse is the opposite tone,
-// so it stays visible against the line. Light bleed (glow, halo, beam) is additive at night and a faint wash by day,
+// The route is chartreuse on the night stage and jet on the paper day model (chartreuse would vanish on a pale
+// ground); the travelling pulse is the opposite tone (soft white by night, pink by day), so it stays visible against
+// the line. Light bleed (glow, halo, beam) is additive at night and a faint wash by day,
 // since adding light to a pale ground would show nothing.
 const COLORS = {
-  night: new THREE.Color('#d7b477'),
-  day: new THREE.Color('#210c13'),
+  night: new THREE.Color('#D4FF3F'),
+  day: new THREE.Color('#0B0B0B'),
 };
 const PULSE_COLORS = {
-  night: new THREE.Color('#faf3eb'),
-  day: new THREE.Color('#d7b477'),
+  night: new THREE.Color('#F5F5F2'),
+  day: new THREE.Color('#FF2DA8'),
 };
 const LOOK = {
   night: { glow: 0.22, halo: 0.3, beam: 0.42, blending: THREE.AdditiveBlending },

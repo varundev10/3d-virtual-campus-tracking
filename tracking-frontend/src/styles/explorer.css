@@ -988,12 +988,12 @@
 
 .campus-map .leaflet-tooltip-top::before { border-top-color: var(--line-strong); }
 
-/* "You are here": a gold dot with a soft halo. */
+/* "You are here": a pink beacon with a soft halo. */
 .campus-marker {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: rgba(215, 180, 119, 0.2);
+  background: var(--accent-soft-2);
 }
 
 .campus-marker span {
@@ -1005,7 +1005,7 @@
   box-shadow: 0 0 0 3px var(--glow-soft), 0 0 16px var(--glow);
 }
 
-/* HUD reticle: two gold corner brackets on the panels that matter (the sign-in card, the selected place, the active
+/* HUD reticle: two accent corner brackets on the panels that matter (the sign-in card, the selected place, the active
    route, the intro prompt). They are drawn inside the border so overflow:hidden panels do not clip them. */
 .auth-card::before,
 .place-card::before,
@@ -1073,8 +1073,8 @@
 .cine > * { z-index: 2; }
 .cine > .cine-backdrop { z-index: 0; }
 
-/* The native clear button inside search fields is dark by default; flip it for the dark theme only. */
-:root:not([data-theme="light"]) .search-input input::-webkit-search-cancel-button { filter: invert(0.75); }
+/* The native clear button inside search fields is dark by default; --clear-filter flips it where the field is dark. */
+.search-input input::-webkit-search-cancel-button { filter: var(--clear-filter); }
 
 /* Leaflet print. Dark: a warm burgundy-tinted night map. Light: a sepia paper map. */
 .campus-map .leaflet-tile-pane {

@@ -2,21 +2,20 @@ import * as THREE from 'three';
 
 const LABEL_SIZE = { normal: [18, 4.5], selected: [20, 5] };
 
-// Annotation label: a mono-caps pill, like a tag on an instrument panel. Night: burgundy glass with a gold hairline.
-// Day: ivory paper with a burgundy hairline. The selected label inverts (solid gold at night, solid burgundy by day),
-// matching the building.
+// Place label: a mono-caps pill with an ink outline. Night: a soft paper pill; day: white. The selected label turns
+// chartreuse, like the selected building and list row. Type is always jet: on the pale fills, and on chartreuse.
 const STYLES = {
   night: {
-    fill: 'rgba(33, 12, 19, 0.9)', stroke: 'rgba(215, 180, 119, 0.6)', text: '#faf3eb',
+    fill: '#F5F5F2', stroke: '#0B0B0B', text: '#0B0B0B',
   },
   day: {
-    fill: 'rgba(255, 252, 248, 0.95)', stroke: 'rgba(33, 12, 19, 0.42)', text: '#210c13',
+    fill: '#ffffff', stroke: '#0B0B0B', text: '#0B0B0B',
   },
   selectedNight: {
-    fill: '#d7b477', stroke: '#e6c98f', text: '#210c13',
+    fill: '#D4FF3F', stroke: '#0B0B0B', text: '#0B0B0B',
   },
   selectedDay: {
-    fill: '#210c13', stroke: '#d7b477', text: '#faf3eb',
+    fill: '#D4FF3F', stroke: '#0B0B0B', text: '#0B0B0B',
   },
 };
 

@@ -21,7 +21,7 @@ export function createDetailKit(assets) {
     map: assets.blob, transparent: true, depthWrite: false, opacity: 0.5,
   }));
   const stemGeometry = shared(new THREE.CylinderGeometry(0.1, 0.1, 1, 8).translate(0, 0.5, 0));
-  const stemMaterial = shared(new THREE.MeshStandardMaterial({ color: '#7a5a66', metalness: 0.2, roughness: 0.55 }));
+  const stemMaterial = shared(new THREE.MeshStandardMaterial({ color: '#6e6e6e', metalness: 0.2, roughness: 0.55 }));
   const diamondGeometry = shared(new THREE.OctahedronGeometry(1).scale(0.75, 1.2, 0.75));
   const ringGeometry = shared(new THREE.RingGeometry(0.88, 1, 56).rotateX(-Math.PI / 2));
   const tint = new THREE.Color();
@@ -166,16 +166,16 @@ export function createStreetLights(assets, footprints) {
   const count = spots.length;
 
   const poleGeometry = new THREE.CylinderGeometry(0.16, 0.22, 5.2, 8).translate(0, 2.6, 0);
-  const poleMaterial = new THREE.MeshStandardMaterial({ color: '#7a5a66', metalness: 0.3, roughness: 0.5 });
+  const poleMaterial = new THREE.MeshStandardMaterial({ color: '#6e6e6e', metalness: 0.3, roughness: 0.5 });
   const headGeometry = new THREE.SphereGeometry(0.55, 14, 10);
-  const headMaterial = new THREE.MeshBasicMaterial({ color: '#ffe3a3', toneMapped: false });
+  const headMaterial = new THREE.MeshBasicMaterial({ color: '#f1ffc0', toneMapped: false });
   const poolGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const poolMaterial = new THREE.MeshBasicMaterial({
-    map: assets.glow, color: '#ffd990', transparent: true, opacity: 0, depthWrite: false,
+    map: assets.glow, color: '#D4FF3F', transparent: true, opacity: 0, depthWrite: false,
     blending: THREE.AdditiveBlending, toneMapped: false,
   });
   const haloMaterial = new THREE.SpriteMaterial({
-    map: assets.glow, color: '#ffe3a3', transparent: true, opacity: 0, depthWrite: false,
+    map: assets.glow, color: '#D4FF3F', transparent: true, opacity: 0, depthWrite: false,
     blending: THREE.AdditiveBlending, toneMapped: false,
   });
 

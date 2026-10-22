@@ -3,9 +3,12 @@ import L from 'leaflet';
 import { CAMPUS_GEOFENCE, UCER_CENTER } from '../lib/campus.js';
 import { categoryColor } from '../lib/locationCategories.js';
 
-// Mirror --gold and --burgundy in styles/tokens.css: the selection, route and boundary colours.
-const GOLD = '#d7b477';
-const BURGUNDY = '#210c13';
+// Mirror --lime, --pink, --jet and --soft in styles/tokens.css. Chartreuse is the selection and, after dark, the
+// route and the boundary; by day the boundary is pink and the route jet, since chartreuse vanishes on a pale map.
+const LIME = '#D4FF3F';
+const PINK = '#FF2DA8';
+const INK = '#0B0B0B';
+const PAPER = '#F5F5F2';
 
 const markerIcon = L.divIcon({
   className: 'campus-marker',
@@ -36,6 +39,7 @@ export default function CampusMap({
   const mountRef = useRef(null);
   const markersRef = useRef(new Map());
   const placesLayerRef = useRef(null);
+  const fenceRef = useRef(null);
   const routeRef = useRef(null);
   const pickedRef = useRef(null);
   const onSelectRef = useRef(onSelectPlace);
@@ -58,11 +62,11 @@ export default function CampusMap({
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
 
-    L.polygon(CAMPUS_GEOFENCE, {
-      color: GOLD,
+    fenceRef.current = L.polygon(CAMPUS_GEOFENCE, {
+      color: LIME,
       weight: 2,
       dashArray: '6 6',
-      fillColor: GOLD,
+      fillColor: LIME,
       fillOpacity: 0.05,
       interactive: false,
     }).addTo(map);
@@ -81,8 +85,15 @@ export default function CampusMap({
       map.remove();
       mapRef.current = null;
       markersRef.current.clear();
+      fenceRef.current = null;
     };
   }, []);
+
+  // The campus boundary is chartreuse on the night map and pink on the paper one.
+  useEffect(() => {
+    const edge = mode === 'day' ? PINK : LIME;
+    fenceRef.current?.setStyle({ color: edge, fillColor: edge });
+  }, [mode]);
 
   useEffect(() => {
     const layer = placesLayerRef.current;
@@ -92,9 +103,9 @@ export default function CampusMap({
       const selected = place.id === selectedPlaceId;
       const marker = L.circleMarker([place.latitude, place.longitude], {
         radius: selected ? 10 : 7,
-        color: selected ? BURGUNDY : '#faf3eb',
+        color: selected ? INK : PAPER,
         weight: selected ? 3 : 2,
-        fillColor: selected ? GOLD : categoryColor(place.category),
+        fillColor: selected ? LIME : categoryColor(place.category),
         fillOpacity: 1,
       });
       marker.bindTooltip(escapeHtml(place.name), { direction: 'top', permanent: selected });
@@ -115,7 +126,7 @@ export default function CampusMap({
     if (route?.from && route?.to) {
       routeRef.current = L.polyline(
         [[route.from.latitude, route.from.longitude], [route.to.latitude, route.to.longitude]],
-        { color: mode === 'day' ? BURGUNDY : GOLD, weight: 3, dashArray: '8 6', interactive: false },
+        { color: mode === 'day' ? INK : LIME, weight: 3, dashArray: '8 6', interactive: false },
       ).addTo(map);
     }
   }, [route, mode]);
@@ -127,7 +138,7 @@ export default function CampusMap({
     pickedRef.current = null;
     if (pickedPoint && Number.isFinite(pickedPoint.latitude) && Number.isFinite(pickedPoint.longitude)) {
       pickedRef.current = L.circleMarker([pickedPoint.latitude, pickedPoint.longitude], {
-        radius: 9, color: BURGUNDY, weight: 3, fillColor: GOLD, fillOpacity: 1,
+        radius: 9, color: INK, weight: 3, fillColor: LIME, fillOpacity: 1,
       }).addTo(map);
     }
   }, [pickedPoint]);
