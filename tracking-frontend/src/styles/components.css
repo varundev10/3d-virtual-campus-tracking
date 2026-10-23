@@ -689,6 +689,9 @@ kbd {
 }
 
 .table-wrap {
+  /* The containing block for the table's visually hidden header text; without it that absolutely positioned text
+     escapes the scroll container and widens the whole page on narrow screens. */
+  position: relative;
   overflow-x: auto;
   margin: 0 -24px;
   padding: 0 24px;
