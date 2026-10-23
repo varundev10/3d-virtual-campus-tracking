@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "eslint . && node scripts/check-ui.mjs",
+    "check:ui": "node scripts/check-ui.mjs",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
