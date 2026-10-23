@@ -81,8 +81,8 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 40px;
-  padding: 48px 56px;
+  gap: 28px;
+  padding: 40px 48px 36px;
   overflow: hidden;
   border-right: 1px solid var(--line);
   background:
@@ -105,16 +105,17 @@
 
 .auth-hero {
   display: grid;
-  gap: 24px;
-  max-width: 540px;
+  gap: 16px;
+  max-width: 600px;
 }
 
 .auth-hero h2 {
   color: var(--hero-ink);
-  font-size: clamp(3.4rem, 5.6vw, 6rem);
+  font-size: clamp(3.2rem, 6.2vw, 6.4rem);
+  font-stretch: var(--stretch-display);
   font-weight: 800;
-  line-height: 0.94;
-  letter-spacing: -0.025em;
+  line-height: 0.9;
+  letter-spacing: -0.015em;
 }
 
 .auth-hero p:not(.eyebrow) { max-width: 40ch; color: var(--ink-2); }
@@ -132,7 +133,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 0;
+  padding: 9px 0;
   border-top: 1px solid var(--line);
 }
 
@@ -153,7 +154,7 @@
 .auth-viewport {
   position: relative;
   flex: 1;
-  min-height: 240px;
+  min-height: 210px;
   margin: 0;
   overflow: hidden;
   border: var(--bw) solid var(--stroke);
@@ -203,7 +204,7 @@
 .viewport-readout .mono { font-weight: 500; }
 
 /* The ticker runs the full width of the plate, along its bottom edge. */
-.auth-aside > .marquee { flex: none; margin: 0 -56px -48px; }
+.auth-aside > .marquee { flex: none; margin: 0 -48px -36px; }
 
 /* The badge breaks the frame: it sits across the seam between the plate and the form. */
 .text-badge.auth-badge { position: absolute; top: 72px; left: -60px; z-index: 5; }
