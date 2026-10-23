@@ -1,3 +1,4 @@
+import { CAMPUS_BUILDINGS } from './campus-buildings.js';
 import { locationToPlaceholderPoint } from './campus.js';
 
 // Mirrors CampusLocation.Category on the backend. Colors follow a fixed categorical order;
@@ -41,6 +42,10 @@ export function locationsToZones(locations) {
     };
   });
 }
+
+// The scene's zones before (or without) any API data, such as the sign-in page's 3D campus: the real places from
+// campus-buildings.js, laid out like every other zone.
+export const CAMPUS_ZONES = locationsToZones(CAMPUS_BUILDINGS);
 
 export function matchesSearch(location, text) {
   if (!text) return true;

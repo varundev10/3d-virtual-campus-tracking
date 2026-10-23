@@ -230,10 +230,10 @@ class SecurityAndAdminApiTests {
     }
 
     @Test
-    void seededLocationsMatchOriginalSceneZonesAndLieInsideGeofence() {
-        assertThat(campusLocationRepository.findByCodeIgnoreCase("A-BLOCK")).isPresent();
+    void seededLocationsMatchTheOpenStreetMapLayoutAndLieInsideGeofence() {
+        assertThat(campusLocationRepository.findByCodeIgnoreCase("MAIN")).isPresent();
         assertThat(campusLocationRepository.findByCodeIgnoreCase("LIB")).isPresent();
-        for (String code : new String[]{"A-BLOCK", "B-BLOCK", "LABS", "LIB", "ADMIN"}) {
+        for (String code : new String[]{"MAIN", "B-BLOCK", "PHARMACY", "LIB", "HOSTEL"}) {
             CampusLocation location = campusLocationRepository.findByCodeIgnoreCase(code).orElseThrow();
             assertThat(geofenceService.isInsideCampus(location.getLatitude(), location.getLongitude()))
                     .as(code + " inside geofence").isTrue();

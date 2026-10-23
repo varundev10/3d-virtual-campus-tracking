@@ -20,12 +20,6 @@ public class DataInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
-    // Mirrors UCER_CENTER in tracking-frontend/src/lib/campus.js, and the 0.45 scale its placeholder scene uses.
-    private static final double CENTER_LAT = 25.3438271534;
-    private static final double CENTER_LNG = 81.9106717343;
-    private static final double METERS_PER_DEGREE = 111_320;
-    private static final double SCENE_SCALE = 0.45;
-
     @Autowired
     private UserRepository userRepository;
 
@@ -85,34 +79,31 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     /**
-     * Seeds the five zones that the original 3D placeholder scene hardcoded (CAMPUS_ZONES),
-     * so existing scene labels keep working. Coordinates are the inverse of the scene
-     * projection, i.e. approximate positions that should be replaced with surveyed values.
+     * Seeds the campus's real places into an empty table. The list mirrors
+     * tracking-frontend/src/lib/campus-buildings.js (keep the two in step: the explorer list comes from here, the
+     * login map and tests from there). Positions are the centres of the OpenStreetMap outlines
+     * (© OpenStreetMap contributors, ODbL); the list is provisional until the full layout is available. An existing
+     * database keeps whatever rows it already has.
      */
     private void seedCampusLocations() {
         if (campusLocationRepository.count() > 0) return;
 
-        seed("A-BLOCK", "Academic Block A", CampusLocation.Category.ACADEMIC_BLOCK, -34, -18);
-        seed("B-BLOCK", "Academic Block B", CampusLocation.Category.ACADEMIC_BLOCK, 16, -24);
-        seed("LABS", "Labs Complex", CampusLocation.Category.LAB, -2, 18);
-        seed("LIB", "Library", CampusLocation.Category.LIBRARY, 42, 12);
-        seed("ADMIN", "Admin Office", CampusLocation.Category.ADMINISTRATION, -44, 26);
-        log.info("Seeded campus locations from the existing 3D scene layout");
+        seed("MAIN", "Main Building", CampusLocation.Category.ADMINISTRATION, 25.343626, 81.910828);
+        seed("B-BLOCK", "Block B", CampusLocation.Category.ACADEMIC_BLOCK, 25.343893, 81.91133);
+        seed("PHARMACY", "Pharmacy", CampusLocation.Category.DEPARTMENT, 25.344132, 81.911873);
+        seed("LIB", "Central Library", CampusLocation.Category.LIBRARY, 25.344102, 81.910451);
+        seed("HOSTEL", "Hostel (Boys + Girls)", CampusLocation.Category.HOSTEL, 25.343345, 81.91004);
+        log.info("Seeded campus locations from the OpenStreetMap layout");
     }
 
-    private void seed(String code, String name, CampusLocation.Category category, double sceneX, double sceneZ) {
-        double metersPerDegreeLng = METERS_PER_DEGREE * Math.cos(Math.toRadians(CENTER_LAT));
+    private void seed(String code, String name, CampusLocation.Category category, double latitude, double longitude) {
         CampusLocation location = new CampusLocation();
         location.setCode(code);
         location.setName(name);
         location.setCategory(category);
-        location.setDescription("Approximate position taken from the 3D placeholder layout. Update with surveyed coordinates.");
-        location.setLatitude(round(CENTER_LAT - sceneZ / SCENE_SCALE / METERS_PER_DEGREE));
-        location.setLongitude(round(CENTER_LNG + sceneX / SCENE_SCALE / metersPerDegreeLng));
+        location.setDescription("Position from OpenStreetMap (© OpenStreetMap contributors, ODbL); approximate. Update with surveyed coordinates.");
+        location.setLatitude(latitude);
+        location.setLongitude(longitude);
         campusLocationRepository.save(location);
-    }
-
-    private static double round(double value) {
-        return Math.round(value * 1e6) / 1e6;
     }
 }

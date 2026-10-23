@@ -47,3 +47,17 @@ cd tracking-frontend
 npm run dev
 ```
 - Frontend runs on `http://localhost:5173`.
+
+## Campus data
+
+The places on the campus map and in the explorer come from the database, which is seeded on first start from
+`tracking-backend/.../config/DataInitializer.java`. `tracking-frontend/src/lib/campus-buildings.js` holds the same list
+for the sign-in page's 3D campus; `npm run lint` checks that the two agree.
+
+The list is **provisional**: it has the five named UCER places that OpenStreetMap knows (Main Building, Block B,
+Pharmacy, Central Library, Hostel), positioned at the centre of their OpenStreetMap outlines. The A-D blocks and the
+other facilities still have to be added. Position data is © OpenStreetMap contributors, available under the
+[ODbL](https://www.openstreetmap.org/copyright).
+
+**An existing database keeps its old places.** The seed only runs when the places table is empty. To pick up the new
+list, delete the old places in Admin > Campus Locations (or clear the `campus_locations` table) and restart the backend.

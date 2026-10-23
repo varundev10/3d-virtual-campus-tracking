@@ -10,12 +10,12 @@ import { GLTFExtensionsPlugin } from '3d-tiles-renderer/three/plugins';
 import {
   CAMPUS_ELEVATION,
   CAMPUS_FLOOR_HEIGHT_METERS,
-  CAMPUS_ZONES,
   UCER_CENTER,
   buildingSize,
   locationToPlaceholderPoint,
   locationToScenePoint,
 } from '../lib/campus.js';
+import { CAMPUS_ZONES } from '../lib/locationCategories.js';
 import { CAMPUS_MODEL_TRANSFORM, getModelFormat } from '../lib/modelConfig.js';
 import { QUALITY_PRESETS, useQuality } from '../lib/quality.js';
 import { createAssets } from '../scene/assets.js';
