@@ -14,6 +14,24 @@
   .user-header { gap: 20px; }
   .user-nav { gap: 22px; }
   .cmdk-trigger-label { min-width: 0; }
+
+  /* The header is crowded from here down, so the search folds to its icon, as it already does on phones. */
+  .user-header .cmdk-trigger { width: 44px; height: 44px; justify-content: center; padding: 0; }
+  .user-header .cmdk-trigger-label,
+  .user-header .cmdk-trigger kbd { display: none; }
+}
+
+@media (max-width: 1000px) {
+  /* The wordmark no longer fits beside the nav and ran underneath the buttons. It is hidden visually but kept for
+     screen readers, so the brand link still has a name. */
+  .user-header .brand-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 920px) {
