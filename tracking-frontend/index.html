@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#210c13" />
+    <meta name="theme-color" content="#0B0B0B" />
     <meta name="color-scheme" content="dark" />
     <script>
       // Pick the theme before the first paint so the page never flashes the wrong world. Keep in step with
@@ -17,12 +17,12 @@
         } catch (e) { /* storage unavailable: fall back to dark */ }
         var root = document.documentElement;
         root.setAttribute('data-theme', theme);
-        root.style.background = theme === 'light' ? '#faf3eb' : '#210c13';
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'light' ? '#faf3eb' : '#210c13');
+        root.style.background = theme === 'light' ? '#F5F5F2' : '#0B0B0B';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'light' ? '#F5F5F2' : '#0B0B0B');
         document.querySelector('meta[name="color-scheme"]').setAttribute('content', theme);
       })();
     </script>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23210c13'/%3E%3Ccircle cx='16' cy='16' r='14.5' fill='none' stroke='%23d7b477' stroke-width='1.5'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='Georgia,serif' font-size='14' fill='%23d7b477'%3EUC%3C/text%3E%3C/svg%3E" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230B0B0B'/%3E%3Ccircle cx='16' cy='16' r='14.5' fill='none' stroke='%23FF2DA8' stroke-width='1.5'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-weight='800' font-size='13' fill='%23D4FF3F'%3EUC%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />

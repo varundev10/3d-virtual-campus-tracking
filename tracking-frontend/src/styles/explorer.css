@@ -260,13 +260,13 @@
   overflow: hidden;
   border: 1px solid var(--accent-line);
   border-radius: var(--radius-lg);
-  background: linear-gradient(160deg, rgba(215, 180, 119, 0.14), var(--hud-bg) 58%);
+  background: linear-gradient(160deg, var(--accent-soft), var(--hud-bg) 58%);
   color: var(--ink);
 }
 
 .explorer-panel .nav-card {
   border-color: var(--accent-line);
-  background: linear-gradient(160deg, rgba(215, 180, 119, 0.14), var(--hud-bg) 58%);
+  background: linear-gradient(160deg, var(--accent-soft), var(--hud-bg) 58%);
   box-shadow: var(--shadow-float), 0 0 36px var(--glow-soft);
 }
 
@@ -288,7 +288,7 @@
 .nav-card.arrived,
 .explorer-panel .nav-card.arrived {
   border-color: var(--accent-text);
-  background: linear-gradient(160deg, rgba(215, 180, 119, 0.24), var(--hud-bg) 62%);
+  background: linear-gradient(160deg, var(--accent-soft-2), var(--hud-bg) 62%);
 }
 
 .nav-figures {
@@ -492,7 +492,7 @@
 
 /* ==========================================================================
    Cinematic intro. Covers the 3D stage only, so the site header and navigation stay usable.
-   Burgundy at first, with one gold glow; the scene is revealed when the backdrop fades.
+   Dark at first, with one soft accent glow; the scene is revealed when the backdrop fades.
    Animates opacity and transform only.
    ========================================================================== */
 .cine {
@@ -512,7 +512,7 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(520px 340px at 50% 46%, rgba(215, 180, 119, 0.08), transparent 70%),
+    radial-gradient(520px 340px at 50% 46%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%),
     radial-gradient(ellipse at 50% 42%, var(--surface) 0%, var(--bg) 72%);
   opacity: 1;
   transition: opacity 1400ms var(--ease-in-out);
@@ -933,8 +933,8 @@
 .scene-controls .icon-button:hover { color: var(--accent-text); }
 .scene-controls hr { width: 60%; margin: 2px auto; border: 0; border-top: 1px solid var(--line); }
 
-/* Leaflet: the OpenStreetMap tiles are rendered as a warm dark print so the map belongs to the same burgundy
-   world. Day keeps a light, desaturated print. */
+/* Leaflet: the OpenStreetMap tiles are rendered as a neutral dark print so the map stays out of the way of the
+   beacons drawn on it. Day keeps a light, desaturated print. */
 .campus-map {
   z-index: 0;
   background: var(--bg);
@@ -1076,11 +1076,11 @@
 /* The native clear button inside search fields is dark by default; --clear-filter flips it where the field is dark. */
 .search-input input::-webkit-search-cancel-button { filter: var(--clear-filter); }
 
-/* Leaflet print. Dark: a warm burgundy-tinted night map. Light: a sepia paper map. */
+/* Leaflet print. Dark: a neutral inverted night map. Light: a neutral desaturated paper map. */
 .campus-map .leaflet-tile-pane {
-  filter: grayscale(1) invert(1) sepia(0.45) hue-rotate(310deg) saturate(1.5) brightness(0.62) contrast(0.95);
+  filter: grayscale(1) invert(1) brightness(0.62) contrast(0.95);
 }
 
 .campus-map.is-day .leaflet-tile-pane {
-  filter: grayscale(1) sepia(0.32) contrast(0.94) brightness(1.04);
+  filter: grayscale(1) contrast(0.94) brightness(1.04);
 }

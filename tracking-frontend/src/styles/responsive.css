@@ -154,7 +154,7 @@
 
   .auth-page { grid-template-columns: 1fr; }
   .auth-aside { padding: 24px 20px 28px; gap: 28px; }
-  .auth-aside::before { background: repeating-radial-gradient(circle at 100% 0%, transparent 0 59px, rgba(215, 180, 119, 0.16) 59px 60px); mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 70%); -webkit-mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 70%); }
+  .auth-aside::before { background: repeating-radial-gradient(circle at 100% 0%, transparent 0 59px, color-mix(in srgb, var(--accent) 16%, transparent) 59px 60px); mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 70%); -webkit-mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 70%); }
   .auth-hero { gap: 12px; }
   .auth-hero p:not(.eyebrow),
   .auth-points { display: none; }

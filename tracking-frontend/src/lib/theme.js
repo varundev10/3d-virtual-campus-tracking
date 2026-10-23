@@ -1,11 +1,11 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { prefersReducedMotion } from './quality.js';
 
-// Light / dark theme for the whole interface and the 3D scene: ivory by day, burgundy by night, gold in both.
+// Light / dark theme for the whole interface and the 3D scene: soft paper by day, jet by night, pink and chartreuse in both.
 // The choice is kept per device; without one the system preference decides. index.html sets data-theme before the
 // first paint, so this module only has to agree with it, never to repaint a flash of the wrong world.
 const KEY = 'ucer.theme';
-const META_COLORS = { dark: '#210c13', light: '#faf3eb' };
+const META_COLORS = { dark: '#0B0B0B', light: '#F5F5F2' };
 const REVEAL_MS = 760;
 const listeners = new Set();
 

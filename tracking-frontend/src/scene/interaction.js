@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Hover / selection visuals for the placeholder buildings. Every value is eased toward its target each frame,
-// so nothing snaps: buildings rise and shade on hover, the selected building lights up in gold and ivory, and the rest of the
+// so nothing snaps: buildings rise and shade on hover, the selected building lights up chartreuse, and the rest of the
 // campus recedes into the ground.
 const DEFAULT_PALETTE = {
   hover: '#D4FF3F', hoverWall: '#3a3a3a', hoverRoof: '#7a7a7a', outline: '#D4FF3F',

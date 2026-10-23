@@ -88,7 +88,7 @@ export default function CommandPalette({ pages }) {
         id: 'action:mode',
         icon: mode === 'day' ? 'moon' : 'sun',
         label: mode === 'day' ? 'Switch to dark theme' : 'Switch to light theme',
-        keywords: 'theme day night light dark mode burgundy ivory scene',
+        keywords: 'theme day night light dark mode jet paper scene',
         run: toggleMode,
       },
       { id: 'action:logout', icon: 'logout', label: 'Sign out', keywords: 'log out logout exit', run: logout },

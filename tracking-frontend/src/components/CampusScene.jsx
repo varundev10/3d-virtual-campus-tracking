@@ -73,7 +73,7 @@ function addBuilding(buildings, labels, kit, zone, index, mode) {
   const group = new THREE.Group();
   group.position.set(zone.x, 0, zone.z);
 
-  // Walls are matte wine (clay-model look); the category colour lives on the pin above the roof.
+  // Walls are matte (clay-model look); the category colour lives on the pin above the roof.
   const wallColor = new THREE.Color((PALETTES[mode] ?? PALETTES.night).wall);
   const building = new THREE.Mesh(
     new THREE.BoxGeometry(size.width, height, size.depth),

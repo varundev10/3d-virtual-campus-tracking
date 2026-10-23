@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { prefersReducedMotion } from './quality.js';
 
-// A soft gold spotlight that follows a fine pointer across the page background (the gradient lives in
+// A soft spotlight of colour that follows a fine pointer across the page background (the gradient lives in
 // styles/base.css and reads --mx / --my). Touch devices and reduced-motion users keep the resting glow.
 export function useAmbientGlow() {
   useEffect(() => {

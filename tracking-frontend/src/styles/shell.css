@@ -12,7 +12,7 @@
 
 .brand-lockup:hover { color: inherit; }
 
-/* The mark is a gold monogram in a hairline ring: the product's constant signal, without spending a solid fill. */
+/* The mark is a monogram in a hairline accent ring: the product's constant signal, without spending a solid fill. */
 .brand-mark {
   display: grid;
   flex: none;
@@ -85,7 +85,7 @@
   overflow: hidden;
   border-right: 1px solid var(--line);
   background:
-    radial-gradient(640px 460px at 100% 100%, rgba(215, 180, 119, 0.1), transparent 70%),
+    radial-gradient(640px 460px at 100% 100%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
     var(--surface);
 }
 
@@ -94,7 +94,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: repeating-radial-gradient(circle at 100% 100%, transparent 0 79px, rgba(215, 180, 119, 0.16) 79px 80px);
+  background: repeating-radial-gradient(circle at 100% 100%, transparent 0 79px, color-mix(in srgb, var(--accent) 16%, transparent) 79px 80px);
   mask-image: radial-gradient(circle at 100% 100%, #000 0%, transparent 70%);
   -webkit-mask-image: radial-gradient(circle at 100% 100%, #000 0%, transparent 70%);
   pointer-events: none;
@@ -256,7 +256,7 @@
   transition: color var(--fast) ease;
 }
 
-/* The active page is marked by a gold line that sits on the header's own border. */
+/* The active page is marked by an accent line that sits on the header's own border. */
 .user-nav-link::after {
   content: "";
   position: absolute;
@@ -411,7 +411,7 @@
 
 .welcome p.muted { font-size: var(--text-md); }
 
-/* Quick actions read as a table of contents: numbered cells that fill with gold on hover. */
+/* Quick actions read as a table of contents: numbered cells that fill with the accent on hover. */
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -560,7 +560,7 @@
   color: var(--accent-text);
 }
 
-/* A gold bar on the sidebar's own edge marks where you are. */
+/* An accent bar on the sidebar's own edge marks where you are. */
 .admin-nav-link.active::before {
   content: "";
   position: absolute;
@@ -1007,7 +1007,7 @@
   font-weight: 500;
 }
 
-/* A gold hairline fades across the bottom of each top bar, like the edge of a lit panel. */
+/* An accent hairline fades across the bottom of each top bar, like the edge of a lit panel. */
 .user-header::after,
 .admin-topbar::after {
   content: "";

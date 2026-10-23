@@ -992,7 +992,7 @@ kbd {
 .detail-section .row-actions { margin-top: 0; }
 
 /* ==========================================================================
-   Charts: neutral bars, a recessive grid, and one gold bar for the peak
+   Charts: neutral bars, a recessive grid, and one accent bar for the peak
    ========================================================================== */
 .chart-card .card-header { margin-bottom: 16px; }
 
@@ -1075,7 +1075,7 @@ kbd {
   animation: bar-grow 0.8s var(--ease) both;
 }
 
-.bar-fill.is-max { background: var(--series-1); box-shadow: 0 0 12px rgba(215, 180, 119, 0.4); }
+.bar-fill.is-max { background: var(--series-1); box-shadow: 0 0 12px color-mix(in srgb, var(--series-1) 40%, transparent); }
 
 @keyframes bar-grow {
   from { transform: scaleX(0); }
