@@ -115,11 +115,6 @@
   letter-spacing: -0.025em;
 }
 
-.auth-hero h2 em {
-  font-style: normal;
-  color: var(--accent-text);
-}
-
 .auth-hero p:not(.eyebrow) { max-width: 40ch; color: var(--ink-2); }
 
 .auth-points {

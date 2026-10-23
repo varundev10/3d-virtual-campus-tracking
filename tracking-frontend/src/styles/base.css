@@ -209,11 +209,16 @@ main:focus {
   transform: rotate(-1.5deg);
 }
 
-/* The highlighter: a lime swipe behind the words that matter (light world), lime type in the dark ones. */
+/* The highlighter: the words that matter in a heading. Chartreuse type in the dark world; in the light one, jet type on a
+   chartreuse block, because chartreuse is never type on light (see --hero-mark-* in tokens.css). Type on chartreuse is
+   always jet, and pink never sits on it. The block is a band sized to the line, not to the font box: an inline background
+   is taller than a tightly leaded heading and would paint over the descenders of the line above. */
 h1 em,
 h2 em {
+  padding: 0 0.1em;
+  background: linear-gradient(var(--hero-mark-bg), var(--hero-mark-bg)) 0 57% / 100% 76% no-repeat;
+  color: var(--hero-mark-ink);
   font-style: normal;
-  background: linear-gradient(transparent 58%, var(--pop) 58%, var(--pop) 90%, transparent 90%);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
