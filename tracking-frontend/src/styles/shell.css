@@ -25,7 +25,7 @@
   color: var(--accent-text);
   font-family: var(--display);
   font-size: 1.15rem;
-  font-weight: 400;
+  font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1;
 }
@@ -35,7 +35,8 @@
   display: block;
   font-family: var(--display);
   font-size: 1.4rem;
-  font-weight: 400;
+  font-stretch: var(--stretch-ui);
+  font-weight: 800;
   letter-spacing: -0.015em;
   line-height: 1.15;
 }
@@ -53,7 +54,7 @@
   font-size: 1.05rem;
 }
 .brand-text { display: grid; min-width: 0; line-height: 1.15; }
-.brand-text strong { font-family: var(--display); font-size: 1.05rem; font-weight: 400; letter-spacing: -0.015em; white-space: nowrap;
+.brand-text strong { font-family: var(--display); font-size: 1.05rem; font-stretch: var(--stretch-ui); font-weight: 800; letter-spacing: -0.015em; white-space: nowrap;
   font-size: 1.4rem;
 }
 
@@ -110,7 +111,7 @@
 
 .auth-hero h2 {
   font-size: clamp(3.4rem, 5.6vw, 6rem);
-  font-weight: 400;
+  font-weight: 800;
   line-height: 0.94;
   letter-spacing: -0.025em;
 }
@@ -206,7 +207,7 @@
   color: var(--ink);
   font-family: var(--display);
   font-size: 1.05rem;
-  font-weight: 400;
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -338,7 +339,7 @@
   border-bottom: 1px solid var(--line);
 }
 
-.user-menu-id strong { font-family: var(--display); font-size: 1.05rem; font-weight: 400; letter-spacing: -0.015em;
+.user-menu-id strong { font-family: var(--display); font-size: 1.05rem; font-weight: 800; letter-spacing: -0.015em;
   font-size: 1.3rem;
 }
 
@@ -399,7 +400,7 @@
 .welcome h1 {
   margin: 18px 0 16px;
   font-size: clamp(3.2rem, 7.4vw, 6.4rem);
-  font-weight: 400;
+  font-weight: 800;
   line-height: 0.92;
   letter-spacing: -0.03em;
 }
@@ -453,7 +454,7 @@
   margin-top: auto;
   font-family: var(--display);
   font-size: 2.1rem;
-  font-weight: 400;
+  font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.05;
 }
@@ -671,7 +672,8 @@
 .admin-title {
   overflow: hidden;
   font-size: 2.4rem;
-  font-weight: 400;
+  font-stretch: var(--stretch-display);
+  font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.02em;
   text-overflow: ellipsis;
@@ -747,7 +749,7 @@
 .stat-value {
   font-family: var(--display);
   font-size: 4.2rem;
-  font-weight: 400;
+  font-weight: 800;
   line-height: 0.95;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -867,7 +869,7 @@
   gap: 8px;
   font-family: var(--display);
   font-size: 1.7rem;
-  font-weight: 400;
+  font-weight: 800;
   letter-spacing: -0.025em;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;

@@ -811,7 +811,7 @@ kbd {
   animation: fade-in var(--med) ease;
 }
 
-.empty-title { display: block; font-family: var(--display); font-size: 1.1rem; font-weight: 400; line-height: 1.2;
+.empty-title { display: block; font-family: var(--display); font-size: 1.1rem; font-weight: 700; line-height: 1.2;
   font-size: 1.45rem;
 }
 
