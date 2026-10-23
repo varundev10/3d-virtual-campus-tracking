@@ -110,6 +110,7 @@
 }
 
 .auth-hero h2 {
+  color: var(--hero-ink);
   font-size: clamp(3.4rem, 5.6vw, 6rem);
   font-weight: 800;
   line-height: 0.94;
@@ -136,6 +137,79 @@
 }
 
 .auth-points .icon { flex: none; color: var(--ink-muted); }
+
+/* The mono micro-label above the headline: the motif, then a line that scrambles into place. */
+.auth-hero .auth-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.auth-kicker .motif { color: var(--accent); }
+
+/* The framed 3D model. The corner brackets are survey marks, and the readout is the campus' position on the map. */
+.auth-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+  margin: 0;
+  overflow: hidden;
+  border: var(--bw) solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: var(--hard-3);
+}
+
+.auth-viewport .campus-scene { position: absolute; inset: 0; min-height: 0; }
+
+.auth-viewport::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--pop), var(--pop)) top left / 16px 2px no-repeat,
+    linear-gradient(var(--pop), var(--pop)) top left / 2px 16px no-repeat,
+    linear-gradient(var(--pop), var(--pop)) top right / 16px 2px no-repeat,
+    linear-gradient(var(--pop), var(--pop)) top right / 2px 16px no-repeat,
+    linear-gradient(var(--pop), var(--pop)) bottom left / 16px 2px no-repeat,
+    linear-gradient(var(--pop), var(--pop)) bottom left / 2px 16px no-repeat,
+    linear-gradient(var(--pop), var(--pop)) bottom right / 16px 2px no-repeat,
+    linear-gradient(var(--pop), var(--pop)) bottom right / 2px 16px no-repeat;
+}
+
+.viewport-readout {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 6px 12px;
+  border: var(--bw) solid var(--stroke);
+  border-radius: var(--radius-pill);
+  background: var(--pop);
+  box-shadow: var(--hard-1);
+  color: var(--pop-ink);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.viewport-readout .mono { font-weight: 500; }
+
+/* The ticker runs the full width of the plate, along its bottom edge. */
+.auth-aside > .marquee { flex: none; margin: 0 -56px -48px; }
+
+/* The badge breaks the frame: it sits across the seam between the plate and the form. */
+.text-badge.auth-badge { position: absolute; top: 72px; left: -60px; z-index: 5; }
+
+/* On narrow screens the campus moves to the bottom of the page, under the form. */
+.auth-viewport.is-compact { flex: none; height: clamp(220px, 58vw, 340px); margin: 0 20px 32px; }
 
 .auth-main {
   display: grid;

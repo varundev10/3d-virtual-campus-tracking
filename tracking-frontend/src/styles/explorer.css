@@ -914,6 +914,10 @@
 
 .campus-scene canvas:active { cursor: grabbing; }
 
+/* A decorative scene turns by itself and never takes the pointer, so the page scrolls straight through it. */
+.campus-scene.is-showcase { touch-action: auto; }
+.campus-scene.is-showcase canvas { pointer-events: none; cursor: default; }
+
 /* Zoom / reset controls floating over the 3D scene. */
 .scene-controls {
   position: absolute;

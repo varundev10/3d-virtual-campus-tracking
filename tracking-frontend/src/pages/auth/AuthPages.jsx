@@ -2,8 +2,19 @@ import { useState } from 'react';
 import { TextField } from '../../components/ui/Field.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import ThemeToggle from '../../components/ui/ThemeToggle.jsx';
+import LazyCampusScene from '../../components/LazyCampusScene.jsx';
+import Marquee from '../../components/fx/Marquee.jsx';
+import Motif from '../../components/fx/Motif.jsx';
+import Scramble from '../../components/fx/Scramble.jsx';
+import SplitText from '../../components/fx/SplitText.jsx';
+import TextBadge from '../../components/fx/TextBadge.jsx';
 import { homePathFor, isAdmin, useAuth } from '../../lib/auth.jsx';
 import { Link, useRouter } from '../../lib/router.jsx';
+import { UCER_CENTER } from '../../lib/campus.js';
+import { useMediaQuery } from '../../lib/useMediaQuery.js';
+import { useQuality } from '../../lib/quality.js';
+import { useSceneMode } from '../../lib/sceneMode.js';
+import { isWebGLAvailable } from '../../scene/webgl.js';
 import { useDocumentTitle } from '../../lib/useDocumentTitle.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,8 +28,37 @@ export function postLoginPath(user, next) {
   return homePathFor(user);
 }
 
+// The campus, turning slowly in a frame: in the plate beside the form on wide screens, at the bottom of the page on
+// narrow ones. Decorative, so it is left out without WebGL and on devices the quality setting already treats as weak;
+// for visitors who prefer reduced motion the same model is shown, but it does not turn.
+function CampusViewport({ compact = false }) {
+  const [mode] = useSceneMode();
+  return (
+    <figure className={`auth-viewport${compact ? ' is-compact' : ''}`}>
+      <LazyCampusScene showcase showControls={false} mode={mode} label="The campus as a 3D model, turning slowly" />
+      <figcaption className="viewport-readout">
+        <span>UCER Prayagraj</span>
+        <span className="mono">{UCER_CENTER.lat.toFixed(4)}°N {UCER_CENTER.lng.toFixed(4)}°E</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+// Everything the ticker says is already said on this page or by the product: nothing is invented.
+const MARQUEE_ITEMS = [
+  'Explore the 3D campus',
+  'Find buildings, labs and the library',
+  'Location shared only with your consent',
+  'Only on campus',
+  'UCER Prayagraj',
+];
+
 function AuthFrame({ title, subtitle, children, footer }) {
   useDocumentTitle(title);
+  const wide = useMediaQuery('(min-width: 921px)');
+  const [webgl] = useState(isWebGLAvailable);
+  const [quality] = useQuality();
+  const showCampus = webgl && quality !== 'low';
   return (
     <div className="auth-page">
       <section className="auth-aside" aria-hidden="true">
@@ -30,17 +70,20 @@ function AuthFrame({ title, subtitle, children, footer }) {
           </div>
         </div>
         <div className="auth-hero">
-          <p className="eyebrow">Digital twin · live campus</p>
-          <h2>Navigate your campus in <em>three dimensions</em>.</h2>
-          <p>A spatial view of every building, lab and facility, with consent-based location sharing.</p>
+          <div className="auth-kicker"><Motif size={14} /><Scramble text="UCER Prayagraj · 3D campus" /></div>
+          <SplitText as="h2" text={'Your campus, in\nthree dimensions.'} mark="three" />
+          <p>Every building, lab and the library on the UCER campus, and your location shared only when you choose to.</p>
         </div>
+        {wide && showCampus && <CampusViewport />}
         <ul className="auth-points">
           <li><Icon name="cube" /> Explore a 3D model of the campus</li>
           <li><Icon name="search" /> Find buildings, labs and the library</li>
           <li><Icon name="shield" /> Location is shared only with your consent, and only on campus</li>
         </ul>
+        <Marquee items={MARQUEE_ITEMS} tone="brand" label="UCER Smart Campus" />
       </section>
       <main className="auth-main" id="main">
+        {wide && <TextBadge className="auth-badge" text={'Explore\u00A0\u2022\u00A0UCER\u00A0\u2022\u00A0Campus\u00A0\u2022\u00A0'} />}
         <ThemeToggle className="auth-theme" />
         <div className="auth-card">
           <h1>{title}</h1>
@@ -49,6 +92,7 @@ function AuthFrame({ title, subtitle, children, footer }) {
           <p className="auth-footer">{footer}</p>
         </div>
       </main>
+      {!wide && showCampus && <CampusViewport compact />}
     </div>
   );
 }

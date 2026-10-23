@@ -36,6 +36,7 @@ const FLIGHT = { select: 1.5, overview: 1.5, zoom: 0.45, intro: 1.2, fov: 0.6 };
 const SELECT_FOV = 40;
 const IDLE_SECONDS = 12;
 const IDLE_ROTATE_SPEED = 0.35;
+const SHOWCASE_ROTATE_SPEED = 0.8;
 const START_AZIMUTH = Math.atan2(START_CAMERA.x, START_CAMERA.z);
 const wrapAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
 
@@ -257,8 +258,11 @@ function createPin(isCurrent, mode) {
   return group;
 }
 
+// Shared default so an omitted `locations` prop does not look like a change on every render.
+const NO_LOCATIONS = {};
+
 export default function CampusScene({
-  locations,
+  locations = NO_LOCATIONS,
   currentPosition,
   campusModelUrl,
   onModelStatus,
@@ -278,6 +282,8 @@ export default function CampusScene({
   overviewSignal = 0,
   // Increment to fly to the currently selected place again (e.g. it was picked a second time from a list).
   refocusSignal = 0,
+  // A decorative, non-interactive view: the campus turns slowly on its own and ignores the pointer.
+  showcase = false,
 }) {
   const [quality] = useQuality();
   // WebGL missing (or the renderer failed to start): show an explanation instead of crashing the page.
@@ -301,6 +307,7 @@ export default function CampusScene({
   const viewRef = useRef(null);
   const envRef = useRef(null);
   const modeRef = useRef(mode);
+  const showcaseRef = useRef(showcase);
   const qualityRef = useRef(quality);
   const onSelectRef = useRef(onSelectZone);
   const onReadyRef = useRef(onReady);
@@ -310,6 +317,7 @@ export default function CampusScene({
   // Keep the "latest value" refs current. Declared first so they are set before the effects below run.
   useEffect(() => {
     modeRef.current = mode;
+    showcaseRef.current = showcase;
     qualityRef.current = quality;
     onSelectRef.current = onSelectZone;
     selectedRef.current = selectedZoneId;
@@ -669,8 +677,9 @@ export default function CampusScene({
         }
         director.update(elapsed);
         if (intro.state === 'skipping' && !director.active) settleCamera();
-        controls.autoRotate = Boolean(motion) && intro.state === 'off' && !director.active && !document.hidden
-          && performance.now() - lastInput > IDLE_SECONDS * 1000;
+        const idle = showcaseRef.current || performance.now() - lastInput > IDLE_SECONDS * 1000;
+        controls.autoRotateSpeed = showcaseRef.current ? SHOWCASE_ROTATE_SPEED : IDLE_ROTATE_SPEED;
+        controls.autoRotate = Boolean(motion) && intro.state === 'off' && !director.active && !document.hidden && idle;
       }
       // The frame time makes the idle drift's speed independent of the display's refresh rate.
       controls.update(delta);
@@ -1048,7 +1057,7 @@ export default function CampusScene({
   }
 
   return (
-    <div className="campus-scene">
+    <div className={`campus-scene ${showcase ? 'is-showcase' : ''}`}>
       <div ref={mountRef} className="campus-scene-canvas" role="img" aria-label={label} />
       {contextLost && <SceneUnavailable reason="lost" />}
       {showControls && !contextLost && (
