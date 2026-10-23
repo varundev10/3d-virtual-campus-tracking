@@ -5,12 +5,12 @@ import { formatDate, titleCase } from '../lib/format.js';
 import { TextField } from './ui/Field.jsx';
 import { useToast } from './ui/Toast.jsx';
 
-export function AccountSummary({ user }) {
+export function AccountSummary({ user, brief = false }) {
   return (
     <dl className="detail-list">
-      <div><dt>Name</dt><dd>{user.name}</dd></div>
-      <div><dt>Email</dt><dd>{user.email}</dd></div>
-      <div><dt>Role</dt><dd><span className={`badge badge-role-${user.role.toLowerCase()}`}>{titleCase(user.role)}</span></dd></div>
+      {!brief && <div><dt>Name</dt><dd>{user.name}</dd></div>}
+      {!brief && <div><dt>Email</dt><dd>{user.email}</dd></div>}
+      {!brief && <div><dt>Role</dt><dd><span className={`badge badge-role-${user.role.toLowerCase()}`}>{titleCase(user.role)}</span></dd></div>}
       <div><dt>Status</dt><dd>{user.active ? 'Active' : 'Deactivated'}</dd></div>
       <div><dt>Member since</dt><dd>{formatDate(user.createdAt)}</dd></div>
       <div><dt>User ID</dt><dd>{user.id}</dd></div>

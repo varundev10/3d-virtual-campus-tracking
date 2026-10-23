@@ -12,6 +12,7 @@ import {
   CAMPUS_FLOOR_HEIGHT_METERS,
   CAMPUS_ZONES,
   UCER_CENTER,
+  buildingSize,
   locationToPlaceholderPoint,
   locationToScenePoint,
 } from '../lib/campus.js';
@@ -22,6 +23,7 @@ import { PALETTES, applyEnvironment, applyMarkerPalette } from '../scene/environ
 import { createSky } from '../scene/sky.js';
 import { createCloudShadows, createParticles } from '../scene/ambient.js';
 import { createDetailKit, createStreetLights } from '../scene/details.js';
+import { createGreenery, createPlaza } from '../scene/greenery.js';
 import {
   LABEL_FONT, createLabelSprite, restyleLabel, updateLabelDistance,
 } from '../scene/labels.js';
@@ -83,8 +85,7 @@ function selectionPose(entry, camera, orbitTarget) {
 // Builds one placeholder building (into `buildings`) and its label (into `labels`, which stays
 // visible over a loaded Metashape model so locations remain selectable).
 function addBuilding(buildings, labels, kit, zone, index, mode) {
-  const height = 9 + (index % 3) * 3;
-  const size = { width: 16 + (index % 2) * 4, depth: 13 + (index % 3) * 3 };
+  const { height, ...size } = buildingSize(index);
 
   const group = new THREE.Group();
   group.position.set(zone.x, 0, zone.z);
@@ -195,6 +196,10 @@ function createPlaceholderCampus() {
   crossRoad.receiveShadow = true;
   group.add(crossRoad);
 
+  // The roundabout where the two roads cross; the trees are placed around it (see scene/greenery.js).
+  const plaza = createPlaza();
+  group.add(plaza);
+
   const buildings = new THREE.Group();
   buildings.name = 'placeholder-buildings';
   group.add(buildings);
@@ -212,7 +217,7 @@ function createPlaceholderCampus() {
   geofenceShape.computeLineDistances();
   group.add(geofenceShape);
 
-  return { group, buildings, ground, grid, road: roadMaterial, geofence: geofenceShape };
+  return { group, buildings, ground, grid, road: roadMaterial, plaza, geofence: geofenceShape };
 }
 
 function prepareCampusModel(object) {
@@ -528,6 +533,7 @@ export default function CampusScene({
       ground: placeholder.ground,
       grid: placeholder.grid,
       road: placeholder.road,
+      plaza: placeholder.plaza,
       geofence: placeholder.geofence,
       markers,
       hemi,
@@ -538,6 +544,7 @@ export default function CampusScene({
       kit,
       assets,
       streetLights: null,
+      greenery: null,
       zoneObjects,
       warmup: 0,
       applyQuality: null,
@@ -816,6 +823,7 @@ export default function CampusScene({
       disposeObject(placeholder.group);
       disposeObject(labels);
       ctx.streetLights?.dispose();
+      ctx.greenery?.dispose();
       sky.dispose();
       particles.dispose();
       clouds.dispose();
@@ -892,6 +900,11 @@ export default function CampusScene({
       ctx.streetLights.dispose();
       ctx.streetLights = null;
     }
+    if (ctx.greenery) {
+      placeholderRef.current.remove(ctx.greenery.group);
+      ctx.greenery.dispose();
+      ctx.greenery = null;
+    }
 
     const footprints = [];
     displayZones.forEach((zone, index) => {
@@ -902,6 +915,8 @@ export default function CampusScene({
     });
     ctx.streetLights = createStreetLights(ctx.assets, footprints);
     placeholderRef.current.add(ctx.streetLights.group);
+    ctx.greenery = createGreenery(footprints);
+    placeholderRef.current.add(ctx.greenery.group);
     animatedRef.current = [...zoneObjectsRef.current.values()];
     applyEnvironment(ctx, modeRef.current);
     // Warm up the hover outlines so the first hover or selection does not stall on shader work: start building every

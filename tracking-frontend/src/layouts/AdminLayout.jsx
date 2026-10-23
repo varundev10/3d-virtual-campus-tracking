@@ -50,7 +50,7 @@ export default function AdminLayout({ title, actions, children }) {
   return (
     <div className={`admin-shell ${menuOpen ? 'menu-open' : ''} ${collapsed ? 'collapsed' : ''}`}>
       <a className="skip-link" href="#main">Skip to content</a>
-      <aside className="admin-sidebar" id="admin-sidebar">
+      <aside className="admin-sidebar contours" id="admin-sidebar">
         <div className="brand-lockup">
           <span className="brand-mark">UC</span>
           <div>

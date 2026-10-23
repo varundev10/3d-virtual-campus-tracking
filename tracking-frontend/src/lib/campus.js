@@ -53,6 +53,16 @@ export const CAMPUS_ZONES = [
   { id: 'ADMIN', name: 'Admin Office', x: -44, z: 26, color: '#b68b3f' },
 ];
 
+// The footprint and height of the generated placeholder building for the index-th location. Shared by the 3D scene
+// and the 2D site plan so the two always show the same campus.
+export function buildingSize(index) {
+  return {
+    height: 9 + (index % 3) * 3,
+    width: 16 + (index % 2) * 4,
+    depth: 13 + (index % 3) * 3,
+  };
+}
+
 export function locationToScenePoint(latitude, longitude) {
   const metersPerDegreeLat = 111_320;
   const metersPerDegreeLng = 111_320 * Math.cos((UCER_CENTER.lat * Math.PI) / 180);

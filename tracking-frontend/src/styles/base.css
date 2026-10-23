@@ -306,3 +306,17 @@ html.theme-fade *::after {
   body::after { display: none; }
   html::after { animation: none; inset: 0; }
 }
+
+/* Contour texture (restored from fix/recovery): a topographic pattern for dark blocks. Put .contours on a positioned element. */
+.contours::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--contour);
+  -webkit-mask: url("../assets/contours.svg") center / cover no-repeat;
+  mask: url("../assets/contours.svg") center / cover no-repeat;
+}
+
+.contours > * { position: relative; z-index: 1; }

@@ -29,12 +29,14 @@ export const PALETTES = {
     ground: '#141414',
     farGround: '#0B0B0B',
     road: '#070707',
+    plaza: '#1f1f1f',
     wall: '#2b2b2b',
     roof: '#5c5c5c',
     gridMajor: '#FF2DA8',
     gridMinor: '#2a2a2a',
     gridOpacity: 0.7,
     geofence: '#D4FF3F',
+    tree: { canopy: '#2f9d72', trunk: '#000000' },
     // Window colors by variant: chartreuse lit, soft white lit, dark.
     windows: ['#D4FF3F', '#F5F5F2', '#0f0f0f'],
     lamp: { head: '#f1ffc0', halo: 0.85, pool: 0.5 },
@@ -67,12 +69,14 @@ export const PALETTES = {
     ground: '#e9e9e4',
     farGround: '#F5F5F2',
     road: '#cfcfc9',
+    plaza: '#dcdcd6',
     wall: '#ffffff',
     roof: '#0B0B0B',
     gridMajor: '#FF2DA8',
     gridMinor: '#d8d8d2',
     gridOpacity: 0.7,
     geofence: '#FF2DA8',
+    tree: { canopy: '#D4FF3F', trunk: '#0B0B0B' },
     // By day the same three variants are glazing: jet glass on white walls with the odd pink pane.
     windows: ['#0B0B0B', '#FF2DA8', '#2b2b2b'],
     lamp: { head: '#9a9a9a', halo: 0, pool: 0 },
@@ -109,6 +113,10 @@ export function applyEnvironment(ctx, mode) {
   ctx.farGround.material.color.set(p.farGround);
   ctx.ground.material.color.set(p.ground);
   ctx.road.color.set(p.road);
+  if (ctx.plaza) {
+    ctx.plaza.material.color.set(p.plaza);
+    ctx.plaza.userData.ring.material.color.set(p.geofence);
+  }
   ctx.geofence?.material.color.set(p.geofence);
 
   // GridHelper stores its two line colors per vertex; rebuild just that color buffer.
@@ -138,6 +146,7 @@ export function applyEnvironment(ctx, mode) {
   ctx.clouds.setOpacity(p.cloudShadow);
   ctx.kit.setPalette(p);
   ctx.streetLights?.setPalette(p);
+  ctx.greenery?.setPalette(p);
   setInteractionPalette(p.interaction);
   ctx.zoneObjects.forEach(({ building, roof, windows }) => {
     // The per-frame hover / dim tint (scene/interaction.js) is built from these base colors; at rest they are

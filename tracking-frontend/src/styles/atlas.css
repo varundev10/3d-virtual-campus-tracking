@@ -1,0 +1,117 @@
+/* ==========================================================================
+   Site plan (components/CampusAtlas.jsx). Every colour is a token, so it follows the theme on its own (the --atlas-*
+   roles are set per theme in tokens.css): by day the buildings are white with pink roofs, after dark they are graphite
+   with chartreuse windows, like the 3D scene.
+   ========================================================================== */
+.atlas {
+  --atlas-ground: color-mix(in srgb, var(--pop) var(--atlas-ground-mix), var(--surface));
+  --atlas-road: var(--surface-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.atlas svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.atlas polygon,
+.atlas polyline,
+.atlas ellipse,
+.atlas circle,
+.atlas line {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* The plate the campus stands on: a slab with the hard shadow's colour on its sides. */
+.atlas-side { fill: var(--hard); stroke: var(--atlas-ink); stroke-width: 2; }
+.atlas-ground { fill: var(--atlas-ground); stroke: var(--atlas-ink); stroke-width: 2.4; }
+.atlas-grid polyline { fill: none; stroke: var(--atlas-ink); stroke-opacity: 0.1; stroke-width: 1; }
+.atlas-road { fill: var(--atlas-road); stroke: none; }
+.atlas-plaza { fill: var(--surface); stroke: var(--atlas-ink); stroke-width: 1.6; }
+.atlas-fence { fill: none; stroke: var(--atlas-fence); stroke-width: 2.4; stroke-dasharray: 7 6; }
+
+.atlas-tree line { stroke: var(--atlas-ink); stroke-width: 1.8; }
+.atlas-tree ellipse { fill: var(--atlas-tree); stroke: var(--atlas-ink); stroke-width: 1.6; }
+
+/* Where you last shared your position: the oldest to the newest, ending on a ringed dot. */
+.atlas-trail { fill: none; stroke: var(--atlas-fence); stroke-width: 2.2; stroke-dasharray: 2 6; }
+.atlas-ping circle { fill: var(--pop); stroke: var(--atlas-ink); stroke-width: 1.8; }
+.atlas-ping-ring { fill: none; stroke: var(--atlas-fence); stroke-width: 2; }
+
+/* A building. The whole group is a link to that place in the explorer. */
+.atlas-place {
+  cursor: pointer;
+  outline: none;
+  animation: atlas-rise 0.7s var(--spring) both;
+  animation-delay: calc(var(--i, 0) * 110ms + 120ms);
+}
+
+.atlas-building { transition: transform var(--dur-med) var(--spring); }
+
+.atlas-shadow { fill: var(--atlas-ink); opacity: 0.12; stroke: none; }
+.atlas-wall { stroke: var(--atlas-ink); stroke-width: 1.8; transition: fill var(--dur-fast) ease; }
+.atlas-wall-front { fill: var(--atlas-front); }
+.atlas-wall-side { fill: var(--atlas-side); }
+.atlas-window { fill: var(--atlas-window); opacity: 0.85; stroke: none; }
+.atlas-roof { fill: var(--atlas-roof); stroke: var(--atlas-ink); stroke-width: 1.8; }
+.atlas-core { fill: var(--atlas-roof); stroke: var(--atlas-ink); stroke-width: 1.6; filter: brightness(1.15); }
+.atlas-stem { stroke: var(--atlas-ink); stroke-width: 1.8; }
+.atlas-pin { stroke: var(--atlas-ink); stroke-width: 1.8; }
+
+.atlas-label { filter: drop-shadow(2px 2px 0 var(--hard)); transition: transform var(--dur-fast) var(--ease); }
+.atlas-label rect { fill: var(--surface); stroke: var(--atlas-ink); stroke-width: 2; transition: fill var(--dur-fast) ease; }
+.atlas-label text {
+  fill: var(--ink);
+  font-family: var(--display);
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* Reaching for a building lifts it and turns it lime: the same "selected" as the explorer's. */
+.atlas-place:hover,
+.atlas-place:focus-visible {
+  --atlas-front: var(--pop);
+  --atlas-side: color-mix(in srgb, var(--pop) 74%, var(--jet));
+}
+
+.atlas-place:hover .atlas-building,
+.atlas-place:focus-visible .atlas-building { transform: translateY(-7px); }
+
+.atlas-place:hover .atlas-label rect,
+.atlas-place:focus-visible .atlas-label rect { fill: var(--pop); }
+
+.atlas-place:hover .atlas-label text,
+.atlas-place:focus-visible .atlas-label text { fill: var(--pop-ink); }
+
+.atlas-place:focus-visible .atlas-roof { stroke-width: 4; }
+
+/* Compass and scale: the plan's survey marks. North really is up and to the right in this projection. */
+.atlas-compass circle { fill: var(--surface); stroke: var(--atlas-ink); stroke-width: 2; }
+.atlas-compass polygon { fill: var(--accent); stroke: var(--atlas-ink); stroke-width: 1.6; }
+.atlas-compass text,
+.atlas-scale text {
+  fill: var(--ink);
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.atlas-scale polyline { fill: none; stroke: var(--atlas-ink); stroke-width: 2.4; }
+.atlas-scale text { font-family: var(--font); font-size: 12px; font-weight: 600; fill: var(--ink-muted); }
+
+.atlas-caption {
+  max-width: 52ch;
+  margin-top: 6px;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+@keyframes atlas-rise {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}

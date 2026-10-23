@@ -1102,3 +1102,15 @@
 .campus-map.is-day .leaflet-tile-pane {
   filter: grayscale(1) contrast(0.94) brightness(1.04);
 }
+
+/* Map scale bar (restored from fix/recovery). */
+.campus-map .leaflet-control-scale-line {
+  padding: 1px 8px;
+  border: var(--bw) solid var(--stroke);
+  border-top: 0;
+  background: var(--hud-bg-strong);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-shadow: none;
+}

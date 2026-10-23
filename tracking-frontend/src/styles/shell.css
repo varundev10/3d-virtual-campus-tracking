@@ -1117,3 +1117,127 @@
 /* The sign-in pages have no header, so the switch sits in the corner of the form side. */
 .auth-main { position: relative; }
 .auth-theme { position: absolute; top: 16px; right: 16px; }
+
+/* Dashboard hero, profile id-card and toned stat cards (restored from fix/recovery). */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 24px 32px;
+}
+
+.hero-copy {
+  display: grid;
+  justify-items: start;
+  gap: 24px;
+  min-width: 0;
+}
+
+.hero h1 {
+  font-size: clamp(3.2rem, 6vw, 5.8rem);
+  font-stretch: var(--stretch-display);
+  font-weight: 800;
+  line-height: 0.88;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.hero-lede {
+  max-width: 34ch;
+  color: var(--ink-2);
+  font-size: 1.15rem;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.hero-id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.id-card {
+  overflow: hidden;
+  border: var(--bw) solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--hard-2);
+}
+
+.id-card-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 28px;
+  border-bottom: var(--bw) solid var(--stroke);
+}
+
+.id-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border: var(--bw) solid var(--stroke);
+  border-radius: 22px;
+  background: var(--pop);
+  box-shadow: var(--hard-2);
+  color: var(--pop-ink);
+  font-family: var(--display);
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+  transform: rotate(-4deg);
+}
+
+.id-who { min-width: 0; flex: 1; }
+
+.id-who h2 {
+  overflow: hidden;
+  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+  font-stretch: var(--stretch-display);
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.id-who p {
+  overflow: hidden;
+  margin-top: 6px;
+  color: var(--ink-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.id-card-body {
+  display: grid;
+  gap: 4px;
+  padding: 24px 28px 22px;
+}
+
+.id-card-body .detail-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.stat-card.tone-live,
+.stat-card.tone-brand {
+  border: var(--bw) solid var(--stroke);
+  box-shadow: var(--hard-2);
+}
+
+.stat-card.tone-live { background: var(--pop); color: var(--pop-ink); }
+
+.stat-card.tone-brand { background: var(--accent); color: var(--accent-ink); }
+
+.tone-live .stat-label,
+.tone-live .stat-hint,
+.tone-brand .stat-label,
+.tone-brand .stat-hint { color: color-mix(in srgb, currentColor 80%, transparent); }
+
+.tone-live .stat-icon,
+.tone-brand .stat-icon { color: currentColor; }

@@ -47,11 +47,11 @@ export default function AdminOverview() {
         <div className="page-stack">
           <p className="muted small">Figures from the live database · updated {formatDateTime(s.generatedAt)}</p>
           <div className="stat-grid">
-            <StatCard icon="users" label="Registered users" value={formatNumber(s.users.total)}
+            <StatCard tone="brand" icon="users" label="Registered users" value={formatNumber(s.users.total)}
               hint={`${formatNumber(s.users.active)} active · ${formatNumber(s.users.inactive)} deactivated`} />
             <StatCard icon="building" label="Campus locations" value={formatNumber(s.locations.total)}
               hint={`${Object.keys(s.locations.byCategory).length} categories`} />
-            <StatCard icon="locate" label="Actively tracking" value={formatNumber(s.tracking.activeUsers)}
+            <StatCard tone="live" icon="locate" label="Actively tracking" value={formatNumber(s.tracking.activeUsers)}
               hint={`Users with a location ping in the last ${s.tracking.activeWindowMinutes} min`} />
             <StatCard icon="activity" label="Location pings (24 h)" value={formatNumber(s.tracking.pingsLast24h)}
               hint={`${formatNumber(s.tracking.pingsTotal)} stored in total`} />

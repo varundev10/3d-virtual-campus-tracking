@@ -61,7 +61,7 @@ function AuthFrame({ title, subtitle, children, footer }) {
   const showCampus = webgl && quality !== 'low';
   return (
     <div className="auth-page">
-      <section className="auth-aside" aria-hidden="true">
+      <section className="auth-aside contours" aria-hidden="true">
         <div className="brand-lockup">
           <span className="brand-mark">UC</span>
           <div>

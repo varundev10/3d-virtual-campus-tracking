@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import CampusAtlas from '../../components/CampusAtlas.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import { AsyncBlock, EmptyState } from '../../components/ui/States.jsx';
 import { api } from '../../lib/api.js';
@@ -16,6 +17,12 @@ const QUICK_ACTIONS = [
   { to: '/app/explore', icon: 'navigation', title: 'Navigate', text: 'Pick a destination and get directions.' },
   { to: '/app/profile', icon: 'user', title: 'My profile', text: 'Account details and password.' },
 ];
+
+function greeting(date = new Date()) {
+  const hour = date.getHours();
+  if (hour < 12) return 'Good morning';
+  return hour < 17 ? 'Good afternoon' : 'Good evening';
+}
 
 export default function UserDashboard() {
   const { user } = useAuth();
@@ -39,17 +46,24 @@ export default function UserDashboard() {
 
   return (
     <div className="page-stack">
-      <section className="welcome card">
-        <div>
-          <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-          <h1>Welcome back, {firstName}</h1>
-          <p className="muted">Signed in as {user.email} · <span className={`badge badge-role-${user.role.toLowerCase()}`}>{titleCase(user.role)}</span></p>
+      <section className="hero" aria-labelledby="hero-title">
+        <div className="hero-copy">
+          <h1 id="hero-title">{greeting()},<br />{firstName}</h1>
+          <p className="hero-lede">Walk the campus in 3D, find a building or a lab, and get directions from where you stand.</p>
+          <div className="hero-actions">
+            <Link to="/app/explore" className="btn btn-pop"><Icon name="cube" /> Open the 3D explorer</Link>
+            <Link to="/app/explore?focus=search" className="btn btn-secondary"><Icon name="search" /> Find a place</Link>
+          </div>
+          <p className="hero-id muted small">
+            Signed in as {user.email}
+            <span className={`badge badge-role-${user.role.toLowerCase()}`}>{titleCase(user.role)}</span>
+          </p>
         </div>
-        <Link to="/app/explore" className="btn btn-primary"><Icon name="cube" /> Open 3D explorer</Link>
+        <CampusAtlas locations={locations.data} trail={pings.data ?? []} />
       </section>
 
       <section aria-labelledby="qa-title">
-        <h2 id="qa-title" className="section-title">Quick actions</h2>
+        <h2 id="qa-title" className="sr-only">Quick actions</h2>
         <div className="quick-grid">
           {QUICK_ACTIONS.map((action) => (
             <Link key={action.title} to={action.to} className="quick-card" data-tilt>
