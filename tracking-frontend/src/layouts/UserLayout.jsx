@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../components/ui/Icon.jsx';
 import CommandPalette from '../components/CommandPalette.jsx';
 import ThemeToggle from '../components/ui/ThemeToggle.jsx';
+import FooterWordmark from '../components/fx/FooterWordmark.jsx';
 import { Link, useRouter } from '../lib/router.jsx';
 import { useAuth } from '../lib/auth.jsx';
 import { useDocumentTitle } from '../lib/useDocumentTitle.js';
@@ -111,6 +112,7 @@ export default function UserLayout({ children }) {
         </div>
       </header>
       <main id="main" className="user-main" tabIndex={-1}>{children}</main>
+      {!immersive && <FooterWordmark />}
     </div>
   );
 }

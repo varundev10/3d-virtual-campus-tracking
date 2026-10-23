@@ -1,10 +1,13 @@
+import { useEffect } from 'react';
 import { RouterProvider, Redirect, Link, useRouter } from './lib/router.jsx';
 import { AuthProvider, homePathFor, isAdmin, useAuth } from './lib/auth.jsx';
 import { ToastProvider } from './components/ui/Toast.jsx';
 import { ErrorState, Spinner } from './components/ui/States.jsx';
+import Fx from './components/fx/Fx.jsx';
 import Icon from './components/ui/Icon.jsx';
 import { useDocumentTitle } from './lib/useDocumentTitle.js';
 import { useAmbientGlow } from './lib/useAmbientGlow.js';
+import { preloadCampusScene } from './components/LazyCampusScene.jsx';
 import { LoginPage, RegisterPage } from './pages/auth/AuthPages.jsx';
 import UserLayout from './layouts/UserLayout.jsx';
 import UserDashboard from './pages/user/UserDashboard.jsx';
@@ -41,10 +44,11 @@ function NotFound() {
   useDocumentTitle('Page not found');
   return (
     <CenteredPage>
-      <div className="card status-page">
+      <div className="not-found">
+        <p className="not-found-code" data-text="404" aria-hidden="true">404</p>
         <h1>Page not found</h1>
-        <p className="muted">The address you opened does not exist.</p>
-        <Link to={user ? homePathFor(user) : '/login'} className="btn btn-primary">Go to {user ? 'your dashboard' : 'sign in'}</Link>
+        <p className="muted">You have walked off the map: nothing is built at this address.</p>
+        <Link to={user ? homePathFor(user) : '/login'} className="btn btn-pop">Go to {user ? 'your dashboard' : 'sign in'}</Link>
       </div>
     </CenteredPage>
   );
@@ -116,11 +120,16 @@ function Routes() {
 
 export default function App() {
   useAmbientGlow();
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((callback) => window.setTimeout(callback, 1500));
+    idle(preloadCampusScene);
+  }, []);
   return (
     <ToastProvider>
       <RouterProvider>
         <AuthProvider>
           <Routes />
+          <Fx />
         </AuthProvider>
       </RouterProvider>
     </ToastProvider>

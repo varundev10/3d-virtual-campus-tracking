@@ -53,6 +53,20 @@
   box-shadow: 0 0 0 4px var(--glow-soft), 0 8px 28px var(--glow-soft);
 }
 
+/* Chartreuse is the interruption: the second action, or the one that opens the campus. Type on it is jet. */
+.btn-pop {
+  border-color: var(--pop);
+  background: var(--pop);
+  color: var(--pop-ink);
+}
+
+.btn-pop:hover:not(:disabled) {
+  border-color: var(--pop);
+  background: var(--pop);
+  color: var(--pop-ink);
+  box-shadow: 0 0 0 4px var(--glow-soft), 0 8px 28px var(--glow-soft);
+}
+
 .btn-secondary {
   border-color: var(--line-strong);
   background: var(--wash);
@@ -789,7 +803,7 @@ kbd {
 .skeleton-line {
   height: 12px;
   border-radius: 4px;
-  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--accent-soft-2) 50%, var(--surface-2) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
@@ -813,6 +827,18 @@ kbd {
 
 .empty-title { display: block; font-family: var(--display); font-size: 1.1rem; font-weight: 700; line-height: 1.2;
   font-size: 1.45rem;
+}
+
+/* The motif, drawn with the same mask as everywhere else (styles/fx.css), leads every empty-state title. */
+.empty-title::before {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.4em;
+  background: var(--accent);
+  -webkit-mask: var(--motif) center / contain no-repeat;
+  mask: var(--motif) center / contain no-repeat;
 }
 
 .empty-state p {

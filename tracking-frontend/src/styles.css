@@ -1,8 +1,9 @@
 /* Stylesheet entry. Order matters: tokens first, then base, shared components, page shells, the explorer,
-   and responsive overrides last so they can adjust any of the above. */
+   the motion layer, and responsive overrides last so they can adjust any of the above. */
 @import "./styles/tokens.css";
 @import "./styles/base.css";
 @import "./styles/components.css";
 @import "./styles/shell.css";
 @import "./styles/explorer.css";
+@import "./styles/fx.css";
 @import "./styles/responsive.css";

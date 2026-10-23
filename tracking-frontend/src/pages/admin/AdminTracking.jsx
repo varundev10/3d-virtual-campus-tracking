@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../layouts/AdminLayout.jsx';
-import CampusScene from '../../components/CampusScene.jsx';
+import CampusScene from '../../components/LazyCampusScene.jsx';
 import CampusMap from '../../components/CampusMap.jsx';
 import MetricStrip from '../../components/MetricStrip.jsx';
 import ActivityFeed from '../../components/ActivityFeed.jsx';

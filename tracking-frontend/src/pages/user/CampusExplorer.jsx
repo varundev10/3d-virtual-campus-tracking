@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import CampusScene from '../../components/CampusScene.jsx';
+import CampusScene from '../../components/LazyCampusScene.jsx';
 import CampusMap from '../../components/CampusMap.jsx';
 import CinematicIntro from '../../components/CinematicIntro.jsx';
 import GpsStatusPanel from '../../components/GpsStatusPanel.jsx';

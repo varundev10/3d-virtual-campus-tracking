@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import AdminLayout from '../../layouts/AdminLayout.jsx';
-import CampusScene from '../../components/CampusScene.jsx';
+import CampusScene from '../../components/LazyCampusScene.jsx';
 import { AccountSummary, ChangePasswordForm, ProfileNameForm } from '../../components/AccountForms.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import { api } from '../../lib/api.js';

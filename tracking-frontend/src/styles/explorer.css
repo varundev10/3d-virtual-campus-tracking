@@ -897,6 +897,8 @@
   touch-action: none;
 }
 
+.campus-scene.scene-loading { background: radial-gradient(ellipse at 50% 45%, var(--surface-2), var(--bg) 70%); }
+
 .campus-scene-canvas {
   position: absolute;
   inset: 0;

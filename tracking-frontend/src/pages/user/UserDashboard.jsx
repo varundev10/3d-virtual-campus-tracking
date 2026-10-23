@@ -52,7 +52,7 @@ export default function UserDashboard() {
         <h2 id="qa-title" className="section-title">Quick actions</h2>
         <div className="quick-grid">
           {QUICK_ACTIONS.map((action) => (
-            <Link key={action.title} to={action.to} className="quick-card">
+            <Link key={action.title} to={action.to} className="quick-card" data-tilt>
               <span className="quick-icon"><Icon name={action.icon} size={20} /></span>
               <strong>{action.title}</strong>
               <span>{action.text}</span>

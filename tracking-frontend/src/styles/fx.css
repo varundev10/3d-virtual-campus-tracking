@@ -1,0 +1,616 @@
+/* ==========================================================================
+   The motion layer: the motif, split-letter headlines, marquee, cursor, page wipe, intro loader, scroll progress,
+   Rave Mode, footer wordmark, card tilt, stickers and HUD frames. The components live in components/fx/.
+
+   Rules for everything in this file:
+     - animate transform and opacity only; loops pause off-screen (see Marquee.jsx);
+     - html.fx-on (set before first paint when motion is allowed) is what makes entrance effects start hidden, so with
+       no JavaScript, or under reduced motion, content is simply visible;
+     - the last block is the reduced-motion fallback for every moving thing here.
+   ========================================================================== */
+
+/* ---- The motif: one shape, used as an <svg> (Motif.jsx) and as a CSS mask for bullets, dividers and buttons. ---- */
+:root {
+  --motif: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 2.5v19M2.5 12h19M5.3 5.3l13.4 13.4M18.7 5.3 5.3 18.7'/%3E%3C/svg%3E");
+}
+
+.motif { flex: none; }
+.motif-spin { animation: spin 6s linear infinite; }
+
+/* A list whose bullets are the motif. */
+.motif-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.motif-list li {
+  position: relative;
+  padding-left: 30px;
+}
+
+.motif-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.3em;
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  -webkit-mask: var(--motif) center / contain no-repeat;
+  mask: var(--motif) center / contain no-repeat;
+}
+
+/* A divider: a hairline, the motif, a hairline. */
+.motif-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  color: var(--ink-faint);
+}
+
+.motif-divider::before,
+.motif-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.motif-divider span {
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask: var(--motif) center / contain no-repeat;
+  mask: var(--motif) center / contain no-repeat;
+}
+
+/* ---- Micro-label that scrambles (Scramble.jsx) ---- */
+.scramble {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+/* ---- Split-letter headline (SplitText.jsx): each letter rises out of its own mask ---- */
+.split-line { display: block; }
+.split-word { display: inline-block; white-space: nowrap; }
+
+.split-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding: 0.12em 0 0.14em;
+  margin: -0.12em 0 -0.14em;
+}
+
+.split-char { display: inline-block; }
+
+/* The one emphasised word: chartreuse type after dark; by day chartreuse is only a fill, so jet type on a chartreuse
+   block (--hero-mark-*, tokens.css). The padding gives the block room around the letters. */
+.split-word.is-mark {
+  padding: 0.04em 0.1em 0.02em;
+  margin: -0.04em -0.1em -0.02em;
+  border-radius: 0.1em;
+  background: var(--hero-mark-bg);
+  color: var(--hero-mark-ink);
+}
+
+html.fx-on .split-char {
+  transform: translateY(115%);
+  animation: split-rise 0.9s var(--ease-out-expo) forwards;
+  animation-delay: calc(var(--split-delay, 0ms) + var(--i) * 28ms);
+}
+
+@keyframes split-rise {
+  to { transform: translateY(0); }
+}
+
+/* Scroll-velocity skew (behaviors.js sets --skew on [data-skew] elements while the page is scrolling). */
+[data-skew] { transform: skewY(var(--skew, 0deg)); }
+
+/* ---- Scroll-triggered entrances ([data-reveal] gets .is-in when it first enters the viewport) ---- */
+html.fx-on [data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+}
+
+html.fx-on [data-reveal].is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---- Marquee (Marquee.jsx): pink on black, black on pink, or black on chartreuse; pauses on hover ---- */
+.marquee {
+  overflow: hidden;
+  padding-block: 14px;
+  border-block: 1px solid var(--jet);
+}
+
+.marquee-pink { background: var(--pink); color: var(--jet); }
+.marquee-lime { background: var(--lime); color: var(--jet); }
+.marquee-ink { background: var(--jet); color: var(--pink); border-color: var(--border); }
+/* Follows the theme: pink on black after dark, jet on pink by day (tokens.css). */
+.marquee-brand { background: var(--marquee-bg); color: var(--marquee-ink); border-color: var(--marquee-edge); }
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration) linear infinite;
+  will-change: transform;
+}
+
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track,
+.marquee[data-offscreen] .marquee-track { animation-play-state: paused; }
+
+.marquee-list {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 28px;
+  margin: 0;
+  padding: 0 14px;
+  list-style: none;
+  font-family: var(--display);
+  font-size: clamp(1.4rem, 3vw, 2.4rem);
+  font-stretch: var(--stretch-display);
+  font-weight: 800;
+  letter-spacing: var(--track-display);
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.marquee-list li {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+
+/* ---- Custom cursor (Cursor.jsx): desktop with a fine pointer only ---- */
+.cursor {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-cursor);
+  pointer-events: none;
+}
+
+html:not(.has-cursor) .cursor { display: none; }
+
+html.has-cursor,
+html.has-cursor * { cursor: none !important; }
+
+/* Text inputs keep the native I-beam. */
+html.has-cursor :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]), textarea, select, [contenteditable="true"]) { cursor: auto !important; }
+
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--lime);
+  transition: opacity var(--dur-fast) ease;
+}
+
+.cursor-ring {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1.5px solid var(--white);
+  border-radius: 50%;
+  mix-blend-mode: difference;
+  transition:
+    width var(--dur-base) var(--ease),
+    height var(--dur-base) var(--ease),
+    margin var(--dur-base) var(--ease),
+    background-color var(--dur-base) ease,
+    opacity var(--dur-fast) ease;
+}
+
+.cursor-ring[data-state="active"] {
+  width: 86px;
+  height: 86px;
+  margin: -43px 0 0 -43px;
+  background: var(--white);
+}
+
+.cursor-ring[data-state="hidden"],
+.cursor-dot[data-state="hidden"] { opacity: 0; }
+
+.cursor-label {
+  color: #000;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease;
+}
+
+.cursor-ring[data-state="active"] .cursor-label { opacity: 1; }
+
+/* ---- Page wipe (PageTransition.jsx): a diagonal pink sweep between routes ---- */
+.page-wipe {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-transition);
+  display: grid;
+  place-items: center;
+  background: var(--pink);
+  color: var(--jet);
+  visibility: hidden;
+  pointer-events: none;
+  clip-path: polygon(-40% 0, -10% 0, -40% 100%, -40% 100%);
+}
+
+/* ---- Intro loader (IntroLoader.jsx): 000 to 100 in huge pink mono numerals, then the screen splits open ---- */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loader);
+  display: grid;
+  place-items: center;
+  color: var(--white);
+  cursor: pointer;
+}
+
+.loader[data-phase="open"] { pointer-events: none; }
+
+.loader-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50.5%;
+  background: var(--jet);
+  transition: transform 0.65s var(--ease-in-out-quart);
+}
+
+.loader-top { top: 0; }
+.loader-bottom { bottom: 0; }
+.loader[data-phase="open"] .loader-top { transform: translateY(-101%); }
+.loader[data-phase="open"] .loader-bottom { transform: translateY(101%); }
+
+.loader-core {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  color: var(--pink);
+  transition: opacity 0.3s ease;
+}
+
+.loader-core .label { color: var(--muted); }
+
+.loader-count {
+  margin: 0;
+  color: var(--pink);
+  font-family: var(--mono);
+  font-size: clamp(5rem, 22vw, 14rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+.loader-skip {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2;
+  transition: opacity 0.3s ease;
+}
+
+.loader[data-phase="open"] .loader-core,
+.loader[data-phase="open"] .loader-skip { opacity: 0; }
+
+/* ---- Scroll progress: a thin chartreuse bar across the very top ---- */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-progress);
+  height: 3px;
+  pointer-events: none;
+}
+
+.scroll-progress span {
+  display: block;
+  height: 100%;
+  background: var(--progress);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+
+/* ---- Rave Mode (RaveMode.jsx): faster ticker, one slow strobe-free wash ---- */
+html.rave { --marquee-duration: 12s; }
+
+.rave-wash {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 25% 20%, var(--pink), transparent 60%),
+    radial-gradient(circle at 78% 82%, var(--lime), transparent 55%);
+}
+
+html.rave-burst .rave-wash { animation: rave-wash 1.4s ease-in-out; }
+
+@keyframes rave-wash {
+  0% { opacity: 0; }
+  45% { opacity: 0.38; }
+  100% { opacity: 0; }
+}
+
+/* ---- Footer wordmark (FooterWordmark.jsx): the name, enormous and outlined, filling pink ---- */
+.wordmark {
+  padding: clamp(48px, 9vw, 112px) var(--page-gutter) 0;
+  overflow: hidden;
+}
+
+.wordmark-caption { margin-bottom: 14px; }
+
+.wordmark-art {
+  position: relative;
+  line-height: 0;
+}
+
+.wordmark-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 400 / 118;
+}
+
+.wordmark-art text {
+  font-family: var(--display);
+  font-size: 150px;
+  font-stretch: 75%;
+  font-weight: 800;
+}
+
+.wordmark-outline text {
+  fill: transparent;
+  stroke: var(--ink);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.wordmark-fill {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(100% 0 0 0);
+  transition: clip-path 0.9s var(--ease-out-expo);
+}
+
+.wordmark-fill text {
+  fill: var(--pink);
+  stroke: none;
+  transition: fill var(--dur-base) ease;
+}
+
+html.fx-on .wordmark.is-in .wordmark-fill,
+.wordmark:hover .wordmark-fill { clip-path: inset(0); }
+
+.wordmark:hover .wordmark-fill text { fill: var(--wordmark-hover); }
+
+/* ---- Card tilt with a light glint (behaviors.js sets --rx --ry --gx --gy on [data-tilt]) ---- */
+[data-tilt] {
+  position: relative;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform var(--dur-base) var(--ease), border-color var(--dur-fast) ease;
+}
+
+[data-tilt]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, 50%), var(--accent-soft-2), transparent 62%);
+  transition: opacity var(--dur-base) ease;
+}
+
+[data-tilt]:hover::after { opacity: 1; }
+
+/* ---- Corner sticker: a slightly rotated label with the motif, for cards ---- */
+.sticker {
+  position: absolute;
+  top: -12px;
+  right: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--lime);
+  color: var(--jet);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transform: rotate(var(--tilt, 5deg));
+}
+
+.sticker::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  -webkit-mask: var(--motif) center / contain no-repeat;
+  mask: var(--motif) center / contain no-repeat;
+}
+
+.sticker-pink { background: var(--pink); --tilt: -4deg; }
+
+/* ---- HUD frame: a thin frame with corner brackets, the control-room look for panels over the 3D stage ---- */
+.hud-frame {
+  position: relative;
+}
+
+.hud-frame::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--bracket), var(--bracket)) top left / 16px 2px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) top left / 2px 16px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) top right / 16px 2px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) top right / 2px 16px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) bottom left / 16px 2px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) bottom left / 2px 16px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) bottom right / 16px 2px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) bottom right / 2px 16px no-repeat;
+}
+
+/* A card that already lifts on hover keeps its lift and tilts on top of it. */
+.quick-card[data-tilt] {
+  transition:
+    transform var(--dur-base) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+.quick-card[data-tilt]:hover { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translate(-2px, -2px); }
+.quick-card[data-tilt]:active { transform: perspective(900px) translate(4px, 4px); }
+
+/* ---- Round text badge (TextBadge.jsx): a ring of type turning slowly around the motif ---- */
+.text-badge {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--badge-size, 120px);
+  aspect-ratio: 1;
+  border: var(--bw) solid var(--stroke);
+  border-radius: 50%;
+  background: var(--pop);
+  box-shadow: var(--hard-1);
+  color: var(--pop-ink);
+}
+
+.text-badge-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: spin 18s linear infinite;
+}
+
+.text-badge-ring text {
+  fill: currentColor;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Custom 404 (App.jsx): a giant numeral whose two offset layers glitch in short bursts ---- */
+.not-found {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  max-width: 520px;
+  text-align: center;
+}
+
+.not-found h1 { font-size: var(--text-xl); }
+
+.not-found-code {
+  position: relative;
+  margin: 0 0 4px;
+  color: var(--hero-ink);
+  font-family: var(--display);
+  font-size: clamp(7rem, 30vw, 15rem);
+  font-stretch: var(--stretch-display);
+  font-weight: 800;
+  letter-spacing: var(--track-display);
+  line-height: 0.8;
+}
+
+.not-found-code::before,
+.not-found-code::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 0 100% 0); /* hidden unless the animation shows a slice */
+  pointer-events: none;
+}
+
+.not-found-code::before { color: var(--glitch-a); animation: glitch-a 3.2s steps(1) infinite; }
+.not-found-code::after { color: var(--glitch-b); animation: glitch-b 3.2s steps(1) infinite; }
+
+@keyframes glitch-a {
+  0%, 62%, 100% { clip-path: inset(0 0 100% 0); transform: none; }
+  64% { clip-path: inset(12% 0 58% 0); transform: translateX(-0.06em); }
+  68% { clip-path: inset(64% 0 8% 0); transform: translateX(0.05em); }
+  72% { clip-path: inset(30% 0 40% 0); transform: translateX(-0.03em); }
+  76% { clip-path: inset(0 0 100% 0); transform: none; }
+}
+
+@keyframes glitch-b {
+  0%, 66%, 100% { clip-path: inset(0 0 100% 0); transform: none; }
+  67% { clip-path: inset(50% 0 22% 0); transform: translateX(0.07em); }
+  71% { clip-path: inset(6% 0 70% 0); transform: translateX(-0.05em); }
+  74% { clip-path: inset(0 0 100% 0); transform: none; }
+}
+
+/* ---- Reduced motion: nothing moves. Entrances are plain fades or simply present; loops stop; overlays go away. ---- */
+@media (prefers-reduced-motion: reduce) {
+  .motif-spin,
+  .text-badge-ring,
+  .not-found-code::before,
+  .not-found-code::after,
+  .marquee-track,
+  .split-char,
+  html.rave-burst .rave-wash { animation: none !important; }
+
+  .split-char,
+  [data-tilt],
+  [data-skew],
+  [data-reveal] { transform: none !important; }
+
+  .cursor,
+  .page-wipe,
+  .loader,
+  .rave-wash { display: none !important; }
+
+  /* The ticker holds still and wraps, so every item can still be read. */
+  .marquee-track { width: auto; flex-wrap: wrap; }
+  .marquee-list { flex-wrap: wrap; row-gap: 8px; white-space: normal; }
+  .marquee-list:nth-child(2) { display: none; }
+
+  .wordmark-fill { transition: none; }
+}
