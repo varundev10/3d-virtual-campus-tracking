@@ -79,9 +79,12 @@ const clamp = THREE.MathUtils.clamp;
 // Keeps labels legible without clutter: they grow a little with distance, fade when the camera is far away
 // (but never vanish, so places stay discoverable) and soften when the camera is right on top of them.
 // `hover` (0..1) brightens and enlarges a label slightly; `dim` (0..1) recedes the labels of unselected places.
-export function updateLabelDistance(sprite, selected, cameraDistance, { hover = 0, dim = 0 } = {}) {
+// `viewScale` is how much bigger the scene is than the placeholder campus (the true-size tiles are ~5x): distances are
+// measured in placeholder units and the label is drawn that much larger, so it reads the same on screen.
+export function updateLabelDistance(sprite, selected, worldDistance, { hover = 0, dim = 0, viewScale = 1 } = {}) {
+  const cameraDistance = worldDistance / viewScale;
   const [baseW, baseH] = selected ? LABEL_SIZE.selected : LABEL_SIZE.normal;
-  const scale = clamp(cameraDistance / 120, 0.65, 1.4) * (1 + 0.08 * hover);
+  const scale = clamp(cameraDistance / 120, 0.65, 1.4) * (1 + 0.08 * hover) * viewScale;
   sprite.scale.set(baseW * scale, baseH * scale, 1);
   if (selected) {
     sprite.material.opacity = 1;

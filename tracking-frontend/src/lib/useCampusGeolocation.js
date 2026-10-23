@@ -15,7 +15,7 @@ function initialStatus() {
  * (an explicit user action). Positions are sent to the backend only while `share` is true,
  * the device is online, and the position is inside the campus geofence.
  */
-export function useCampusGeolocation({ share }) {
+export function useCampusGeolocation({ share, floorLevel = 0 }) {
   const [status, setStatus] = useState(initialStatus);
   const [position, setPosition] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -25,6 +25,10 @@ export function useCampusGeolocation({ share }) {
   const lastPostAt = useRef(0);
   const shareRef = useRef(share);
   shareRef.current = share;
+  const floorRef = useRef(floorLevel);
+  useEffect(() => {
+    floorRef.current = floorLevel;
+  }, [floorLevel]);
 
   useEffect(() => {
     const up = () => setOnline(true);
@@ -58,7 +62,12 @@ export function useCampusGeolocation({ share }) {
     if (now - lastPostAt.current < MIN_POST_INTERVAL_MS) return;
     lastPostAt.current = now;
     try {
-      await api.postLocation({ latitude: coords.latitude, longitude: coords.longitude, source: 'GPS' });
+      await api.postLocation({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        floorLevel: floorRef.current,
+        source: 'GPS',
+      });
       setSync({ state: 'saved', message: null, at: new Date() });
     } catch (error) {
       setSync({ state: 'error', message: error.message, at: null });

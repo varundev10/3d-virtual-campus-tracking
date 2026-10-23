@@ -4,7 +4,8 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
-  { ignores: ['dist', 'node_modules'] },
+  // public/draco is the vendored, minified Draco decoder (third-party code), not ours to lint.
+  { ignores: ['dist', 'node_modules', 'public/draco'] },
   js.configs.recommended,
   react.configs.flat.recommended,
   react.configs.flat['jsx-runtime'],

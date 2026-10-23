@@ -99,8 +99,10 @@ export function applyEnvironment(ctx, mode) {
 
   scene.background.set(p.fog);
   scene.fog.color.set(p.fog);
-  scene.fog.near = p.fogNear;
-  scene.fog.far = p.fogFar;
+  // The streamed tiles are true-size, so the scene sets `viewScale` to push the fog out with them.
+  const viewScale = ctx.viewScale ?? 1;
+  scene.fog.near = p.fogNear * viewScale;
+  scene.fog.far = p.fogFar * viewScale;
   scene.environmentIntensity = p.environment;
 
   ctx.sky.setPalette(p);

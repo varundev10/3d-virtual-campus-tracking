@@ -1,4 +1,4 @@
-import { locationToScenePoint } from './campus.js';
+import { locationToPlaceholderPoint } from './campus.js';
 
 // Mirrors CampusLocation.Category on the backend. Colors follow a fixed categorical order;
 // the category name is always shown as text too, so identity never relies on color alone.
@@ -25,15 +25,18 @@ export function categoryColor(value) {
   return byValue[value]?.color ?? '#808080';
 }
 
-// Converts API campus locations into the zone shape CampusScene renders.
+// Converts API campus locations into the zone shape CampusScene renders. x / z place the zone on the placeholder
+// campus; the coordinates ride along so the scene can re-project it true-size once the Metashape tiles stream in.
 export function locationsToZones(locations) {
   return locations.map((location) => {
-    const point = locationToScenePoint(location.latitude, location.longitude);
+    const point = locationToPlaceholderPoint(location.latitude, location.longitude);
     return {
       id: location.code,
       name: location.name,
       x: point.x,
       z: point.z,
+      latitude: location.latitude,
+      longitude: location.longitude,
       color: categoryColor(location.category),
     };
   });

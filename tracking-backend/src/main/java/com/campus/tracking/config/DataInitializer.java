@@ -20,9 +20,9 @@ public class DataInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
-    // Mirrors UCER_CENTER and the 0.45 scene scale in tracking-frontend/src/lib/campus.js.
-    private static final double CENTER_LAT = 25.4305;
-    private static final double CENTER_LNG = 81.7704;
+    // Mirrors UCER_CENTER in tracking-frontend/src/lib/campus.js, and the 0.45 scale its placeholder scene uses.
+    private static final double CENTER_LAT = 25.3438271534;
+    private static final double CENTER_LNG = 81.9106717343;
     private static final double METERS_PER_DEGREE = 111_320;
     private static final double SCENE_SCALE = 0.45;
 

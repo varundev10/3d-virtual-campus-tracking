@@ -14,16 +14,17 @@ const START_HEIGHT = 175;
 
 export const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
 
-// Places the camera and orbit target for `progress` in 0..1. `end` is the normal starting camera position.
-export function applyIntroPose(camera, controls, end, progress) {
+// Places the camera and orbit target for `progress` in 0..1. `end` is the normal starting camera position; `scale`
+// stretches the sweep for a larger scene (the true-size tiles).
+export function applyIntroPose(camera, controls, end, progress, scale = 1) {
   const e = easeInOutCubic(THREE.MathUtils.clamp(progress, 0, 1));
   const endAzimuth = Math.atan2(end.x, end.z);
   const endRadius = Math.hypot(end.x, end.z);
   const azimuth = endAzimuth - SWEEP_RADIANS * (1 - e);
-  const radius = THREE.MathUtils.lerp(START_RADIUS_XZ, endRadius, e);
-  const height = THREE.MathUtils.lerp(START_HEIGHT, end.y, e) + 6 * Math.sin(Math.PI * e);
+  const radius = THREE.MathUtils.lerp(START_RADIUS_XZ * scale, endRadius, e);
+  const height = THREE.MathUtils.lerp(START_HEIGHT * scale, end.y, e) + 6 * scale * Math.sin(Math.PI * e);
   camera.position.set(Math.sin(azimuth) * radius, height, Math.cos(azimuth) * radius);
-  controls.target.set(0, THREE.MathUtils.lerp(14, 0, e), 0);
+  controls.target.set(0, THREE.MathUtils.lerp(14 * scale, 0, e), 0);
   camera.fov = THREE.MathUtils.lerp(FOV_START, FOV_END, e);
   camera.updateProjectionMatrix();
 }

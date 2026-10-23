@@ -33,6 +33,15 @@ Admin pages show "Admin access required" for other roles, and every admin API is
 The router uses the History API, so a production web server must serve `index.html` for unknown paths
 (Vite's dev server and `vite preview` already do).
 
+## Campus 3D Tiles
+
+The UCER Metashape 3D Tiles export is loaded from
+`public/models/ucer-campus-tiles/tileset.json`. The campus tile files are large runtime
+assets and are excluded from Git. For a fresh checkout, extract the contents of
+`ucer-campus-tiles.3tz` into `public/models/ucer-campus-tiles/`, preserving the
+`tileset.json` and `Data/` paths. The viewer streams the tile levels it needs as you
+zoom and rotate the 3D campus.
+
 ## Backend alignment
 
 - Auth: `POST /api/auth/login`, `POST /api/auth/register`, `GET/PATCH /api/auth/me`, `PUT /api/auth/password`.

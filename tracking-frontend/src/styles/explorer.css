@@ -251,6 +251,17 @@
   gap: 14px;
 }
 
+.gps-floor {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.gps-floor .input {
+  min-width: 168px;
+}
+
 /* The active route is the one lit card on the stage. */
 .nav-card {
   position: relative;

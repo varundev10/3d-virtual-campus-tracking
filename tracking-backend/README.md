@@ -1,6 +1,6 @@
 # Smart Campus Tracking System — Backend
 
-Comprehensive backend for the Smart Campus Tracking System. This Spring Boot application provides REST APIs, persistent storage (MySQL), and a real-time WebSocket/STOMP feed for live location updates. The README below explains how to set up, run, and extend the project.
+Comprehensive backend for the Smart Campus Tracking System. This Spring Boot application provides REST APIs, persistent storage (PostgreSQL), and a real-time WebSocket/STOMP feed for live location updates. The README below explains how to set up, run, and extend the project.
 
 ## Features
 - User management (create/list users)
@@ -13,7 +13,7 @@ Comprehensive backend for the Smart Campus Tracking System. This Spring Boot app
 - Java 17
 - Spring Boot 3.x
 - Spring Data JPA (Hibernate)
-- MySQL (or compatible relational DB)
+- PostgreSQL 16+ (or compatible PostgreSQL release)
 - Maven (wrapper included)
 - WebSocket (STOMP)
 
@@ -28,42 +28,66 @@ Comprehensive backend for the Smart Campus Tracking System. This Spring Boot app
 ## Prerequisites
 - Java 17 or newer
 - Maven or use the included `mvnw` wrapper
-- MySQL 8.x (or compatible DB)
+- PostgreSQL 16+
 - (Optional) Docker
 
 ## Configuration
-All runtime configuration lives in `src/main/resources/application.properties`. Before running, set your DB credentials there or via environment variables.
+All runtime configuration lives in `src/main/resources/application.properties`. Set database credentials with environment variables; do not commit passwords.
 
 Example minimal `application.properties` values to use locally:
 
 ```
-spring.datasource.url=jdbc:mysql://localhost:3306/campus_tracking?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+spring.datasource.url=jdbc:postgresql://localhost:5432/campus_tracking
 spring.datasource.username=campus_user
-spring.datasource.password=StrongPassword123!
+spring.datasource.password=<your-local-password>
 spring.jpa.hibernate.ddl-auto=update
 server.port=8080
 ```
 
+The application supports `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` environment variables. Defaults point to the local `campus_tracking` database and user `campus_user`; set `DB_PASSWORD` before starting the backend.
+
 For production, replace `ddl-auto=update` with migrations (Flyway/Liquibase) and use secure secret storage.
 
-## Create database and user (MySQL)
+## Create database and user (PostgreSQL)
 Run the following SQL as an administrative user to create the DB and user used above:
 
 ```sql
-CREATE DATABASE campus_tracking;
-CREATE USER 'campus_user'@'localhost' IDENTIFIED BY 'StrongPassword123!';
-GRANT ALL PRIVILEGES ON campus_tracking.* TO 'campus_user'@'localhost';
-FLUSH PRIVILEGES;
+CREATE USER campus_user WITH PASSWORD 'choose-a-local-password';
+CREATE DATABASE campus_tracking OWNER campus_user;
 ```
 
-Adjust user/host/password as required and update `application.properties`.
+Adjust user/host/password as required. The `set-db-creds.ps1` helper can prompt for
+these settings and start Spring Boot without saving the password in the properties
+file.
+
+## Current relational schema
+
+Hibernate creates and updates the schema from the JPA entities because
+`spring.jpa.hibernate.ddl-auto=update` is enabled for this prototype. The current
+tables are `users`, `location_pings`, `attendance_records`, and `alerts`.
+Their definitions live in `src/main/java/com/campus/tracking/model`. Location
+coordinates are stored as latitude/longitude numeric columns. PostGIS is not
+configured in this backend yet.
+
+Location pings also carry an optional `floorLevel` (0 = ground floor). The 3D
+viewer snaps each marker to the streamed model surface, then offsets upper floors
+using the configurable 3.5 m floor-height estimate in the frontend. Replace that
+estimate with surveyed floor elevations for building-accurate indoor positioning;
+GPS alone does not determine a person's floor.
 
 ## Run the application
-From the repository root (where `mvnw` is located) run:
+From the `tracking-backend` directory run:
 
 Windows PowerShell
 ```powershell
 ./mvnw spring-boot:run
+```
+
+On PowerShell, configure the local database password in the same terminal first:
+
+```powershell
+$env:DB_PASSWORD = 'your-local-password'
+./mvnw.cmd spring-boot:run
 ```
 
 Or with a local Maven installation:
@@ -165,15 +189,17 @@ Refer to the `model` package for field-level details and relationships.
 ```
 
 ## Docker (optional)
-You can run MySQL in Docker for local development:
+You can run PostgreSQL in Docker for local development:
 
 ```bash
-docker run --name campus-mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=campus_tracking -e MYSQL_USER=campus_user -e MYSQL_PASSWORD=StrongPassword123! -p 3306:3306 -d mysql:8
+docker run --name campus-postgres -e POSTGRES_DB=campus_tracking -e POSTGRES_USER=campus_user -e POSTGRES_PASSWORD=campus_dev_password -p 5432:5432 -d postgres:17
 ```
+
+Then set `DB_PASSWORD=campus_dev_password` in the shell used to run Spring Boot.
 
 ## Troubleshooting
 - Lombok: ensure Lombok plugin is enabled in your IDE.
-- DB connection errors: verify `spring.datasource.*` settings and that MySQL is accessible.
+- DB connection errors: verify `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`, and confirm PostgreSQL is listening on port 5432.
 - Port conflicts: change `server.port` in `application.properties`.
 
 ## Contributing

@@ -75,6 +75,7 @@ export default function CampusExplorer() {
   const [selectedCode, setSelectedCode] = useState(query.get('location'));
   const [destinationCode, setDestinationCode] = useState(null);
   const [share, setShare] = useState(false);
+  const [floorLevel, setFloorLevel] = useState(0);
   // Without WebGL there is no 3D view: start on the map (the place list beside it works either way).
   const [webgl] = useState(isWebGLAvailable);
   const [view, setView] = useState(webgl ? '3d' : 'map');
@@ -101,7 +102,7 @@ export default function CampusExplorer() {
     !window.matchMedia('(max-width: 920px)').matches || query.has('location') || query.get('focus') === 'search'
   ));
   const searchRef = useRef(null);
-  const geo = useCampusGeolocation({ share });
+  const geo = useCampusGeolocation({ share, floorLevel });
   const [sceneMode, toggleSceneMode] = useSceneMode();
 
   // Follow ?location= changes made while this page is open (e.g. from the command palette or history).
@@ -303,6 +304,8 @@ export default function CampusExplorer() {
             <CampusScene
               locations={myPin}
               currentPosition={current}
+              selectedUserId={user.id}
+              floorLevel={floorLevel}
               campusModelUrl={DEFAULT_CAMPUS_MODEL_URL}
               onModelStatus={setModelStatus}
               zones={zones}
@@ -426,7 +429,7 @@ export default function CampusExplorer() {
           )}
         </section>
 
-        <GpsStatusPanel geo={geo} share={share} onShareChange={setShare} />
+        <GpsStatusPanel geo={geo} share={share} onShareChange={setShare} floorLevel={floorLevel} onFloorLevel={setFloorLevel} />
       </aside>
     </div>
   );

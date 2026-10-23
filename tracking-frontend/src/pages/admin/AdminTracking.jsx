@@ -10,6 +10,7 @@ import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.jsx';
 import { useAsync } from '../../lib/useAsync.js';
 import { connectLiveLocations } from '../../lib/liveLocations.js';
+import { isLikelyInsideCampus } from '../../lib/campus.js';
 import { locationsToZones } from '../../lib/locationCategories.js';
 import { DEFAULT_CAMPUS_MODEL_URL } from '../../lib/modelConfig.js';
 import { useSceneMode } from '../../lib/sceneMode.js';
@@ -122,7 +123,8 @@ export default function AdminTracking() {
 
   useEffect(() => {
     if (!latest.data) return;
-    setPositions(Object.fromEntries(latest.data.map((p) => [String(p.userId), p])));
+    const onCampus = latest.data.filter((p) => isLikelyInsideCampus(p.latitude, p.longitude));
+    setPositions(Object.fromEntries(onCampus.map((p) => [String(p.userId), p])));
     setLastUpdate(new Date());
     addActivity('BACKEND', `Loaded ${latest.data.length} latest position${latest.data.length === 1 ? '' : 's'}`);
   }, [latest.data, addActivity]);
@@ -131,6 +133,7 @@ export default function AdminTracking() {
     const disconnect = connectLiveLocations(
       (ping) => {
         if (!ping.userId || ping.latitude == null || ping.longitude == null) return;
+        if (!isLikelyInsideCampus(ping.latitude, ping.longitude)) return;
         setPositions((items) => ({ ...items, [String(ping.userId)]: ping }));
         setLastUpdate(new Date());
         addActivity('LIVE', `User ${ping.userId} position update received`);

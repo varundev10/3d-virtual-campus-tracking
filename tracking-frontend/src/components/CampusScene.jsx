@@ -1,10 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { CAMPUS_ZONES, locationToScenePoint } from '../lib/campus.js';
+import { TilesRenderer } from '3d-tiles-renderer/three';
+import { GLTFExtensionsPlugin } from '3d-tiles-renderer/three/plugins';
+import {
+  CAMPUS_ELEVATION,
+  CAMPUS_FLOOR_HEIGHT_METERS,
+  CAMPUS_ZONES,
+  UCER_CENTER,
+  locationToPlaceholderPoint,
+  locationToScenePoint,
+} from '../lib/campus.js';
 import { CAMPUS_MODEL_TRANSFORM, getModelFormat } from '../lib/modelConfig.js';
 import { QUALITY_PRESETS, useQuality } from '../lib/quality.js';
 import { createAssets } from '../scene/assets.js';
@@ -31,6 +41,11 @@ const START_CAMERA = new THREE.Vector3(78, 72, 86);
 const ORIGIN = new THREE.Vector3(0, 0, 0);
 const LABEL_HEIGHT_ABOVE_ROOF = 9;
 
+// Two camera frames. The streamed Metashape tiles are true size (metres), roughly five times the placeholder
+// campus, so they get their own overview pose, zoom limit, and fog / intro scale. Positions are projected to match.
+const PLACEHOLDER_FRAME = { start: START_CAMERA, maxDistance: 220, scale: 1 };
+const TILES_FRAME = { start: new THREE.Vector3(0, 360, 470), maxDistance: 1800, scale: 5 };
+
 // Camera moves. Seconds are per move; reduced motion makes every move instant.
 const FLIGHT = { select: 1.5, overview: 1.5, zoom: 0.45, intro: 1.2, fov: 0.6 };
 const SELECT_FOV = 40;
@@ -40,9 +55,9 @@ const SHOWCASE_ROTATE_SPEED = 0.8;
 const START_AZIMUTH = Math.atan2(START_CAMERA.x, START_CAMERA.z);
 const wrapAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
 
-function flyToOverview(director, motion) {
+function flyToOverview(director, motion, start) {
   director.flyTo({
-    position: START_CAMERA, target: ORIGIN, fov: NORMAL_FOV, duration: motion ? FLIGHT.overview : 0,
+    position: start, target: ORIGIN, fov: NORMAL_FOV, duration: motion ? FLIGHT.overview : 0,
   });
 }
 
@@ -225,6 +240,45 @@ function prepareCampusModel(object) {
   });
 }
 
+// 3D Tiles are positioned in Earth-centred coordinates. This is the transform into the scene's own frame: x east,
+// y up, z south, origin at UCER_CENTER on the campus ground (see lib/campus.js).
+function geodeticToEcef(latitude, longitude, height) {
+  const semiMajorAxis = 6378137;
+  const eccentricitySquared = 6.69437999014e-3;
+  const lat = THREE.MathUtils.degToRad(latitude);
+  const lon = THREE.MathUtils.degToRad(longitude);
+  const sinLat = Math.sin(lat);
+  const cosLat = Math.cos(lat);
+  const primeVerticalRadius = semiMajorAxis / Math.sqrt(1 - eccentricitySquared * sinLat * sinLat);
+
+  return new THREE.Vector3(
+    (primeVerticalRadius + height) * cosLat * Math.cos(lon),
+    (primeVerticalRadius + height) * cosLat * Math.sin(lon),
+    (primeVerticalRadius * (1 - eccentricitySquared) + height) * sinLat,
+  );
+}
+
+function createEcefToCampusFrame() {
+  const latitude = THREE.MathUtils.degToRad(UCER_CENTER.lat);
+  const longitude = THREE.MathUtils.degToRad(UCER_CENTER.lng);
+  const sinLat = Math.sin(latitude);
+  const cosLat = Math.cos(latitude);
+  const sinLon = Math.sin(longitude);
+  const cosLon = Math.cos(longitude);
+  const origin = geodeticToEcef(UCER_CENTER.lat, UCER_CENTER.lng, CAMPUS_ELEVATION);
+  const east = new THREE.Vector3(-sinLon, cosLon, 0);
+  const north = new THREE.Vector3(-sinLat * cosLon, -sinLat * sinLon, cosLat);
+  const up = new THREE.Vector3(cosLat * cosLon, cosLat * sinLon, sinLat);
+  const south = north.negate();
+
+  return new THREE.Matrix4().set(
+    east.x, east.y, east.z, -east.dot(origin),
+    up.x, up.y, up.z, -up.dot(origin),
+    south.x, south.y, south.z, -south.dot(origin),
+    0, 0, 0, 1,
+  );
+}
+
 // A user's live position: a bobbing pin with a pulsing ring (animated in the render loop). Its colours come from
 // the scene palette (see applyMarkerPalette), so it follows day / night like everything else.
 function createPin(isCurrent, mode) {
@@ -264,6 +318,9 @@ const NO_LOCATIONS = {};
 export default function CampusScene({
   locations = NO_LOCATIONS,
   currentPosition,
+  // Which user's pin takes `floorLevel` (the floor they picked); every other pin uses its own last ping's floor.
+  selectedUserId,
+  floorLevel = 0,
   campusModelUrl,
   onModelStatus,
   zones = CAMPUS_ZONES,
@@ -289,6 +346,8 @@ export default function CampusScene({
   // WebGL missing (or the renderer failed to start): show an explanation instead of crashing the page.
   const [unavailable, setUnavailable] = useState(() => !isWebGLAvailable());
   const [contextLost, setContextLost] = useState(false);
+  // True once the streamed tiles are showing: positions and the camera then use the true-size frame.
+  const [tilesActive, setTilesActive] = useState(false);
   const mountRef = useRef(null);
   const markersRef = useRef(new Map());
   const sceneRef = useRef(null);
@@ -298,6 +357,9 @@ export default function CampusScene({
   const zoneObjectsRef = useRef(new Map());
   const animatedRef = useRef([]);
   const modelRef = useRef(null);
+  const tilesRendererRef = useRef(null);
+  const tilesFrameRef = useRef(null);
+  const frameRef = useRef(PLACEHOLDER_FRAME);
   const routeRef = useRef(null);
   const framedRouteRef = useRef(null);
   const directorRef = useRef(null);
@@ -389,20 +451,20 @@ export default function CampusScene({
     const intro = introRef.current;
     const beginIntroControl = () => {
       controls.enabled = false;
-      controls.maxDistance = INTRO_MAX_DISTANCE;
+      controls.maxDistance = INTRO_MAX_DISTANCE * frameRef.current.scale;
     };
     const settleCamera = () => {
-      camera.position.copy(START_CAMERA);
+      camera.position.copy(frameRef.current.start);
       controls.target.set(0, 0, 0);
       camera.fov = NORMAL_FOV;
       camera.updateProjectionMatrix();
       controls.enabled = true;
-      controls.maxDistance = 220;
+      controls.maxDistance = frameRef.current.maxDistance;
       intro.state = 'off';
     };
     if (intro.state === 'hold' || intro.state === 'play') {
       beginIntroControl();
-      applyIntroPose(camera, controls, START_CAMERA, 0);
+      applyIntroPose(camera, controls, frameRef.current.start, 0, frameRef.current.scale);
     }
 
     // Lights. Colors and intensities are set per day / night mode by applyEnvironment.
@@ -599,6 +661,9 @@ export default function CampusScene({
     let frame;
     let readyFired = false;
     const clock = new THREE.Clock();
+    // Pins rest on the streamed terrain: a ray straight down at each pin's spot, refreshed about once a second.
+    const terrainRaycaster = new THREE.Raycaster();
+    let lastTerrainSnap = 0;
     const animate = () => {
       frame = requestAnimationFrame(animate);
       const delta = Math.min(clock.getDelta(), 0.1);
@@ -618,7 +683,7 @@ export default function CampusScene({
 
       markers.forEach((marker) => {
         const { head, ring } = marker.userData;
-        marker.position.y = Math.sin(elapsed * 2.4 + marker.position.x) * 0.35 * motion;
+        marker.position.y = (marker.userData.baseY ?? 0) + Math.sin(elapsed * 2.4 + marker.position.x) * 0.35 * motion;
         marker.rotation.y += 0.72 * delta * motion;
         const k = motion ? (((elapsed * 0.7 + marker.position.x * 0.05) % 1) + 1) % 1 : 0.3;
         ring.scale.setScalar(0.85 + k * 0.9);
@@ -642,7 +707,7 @@ export default function CampusScene({
         entry.hoverTarget = entry.zone.id === hoveredId ? 1 : 0;
         updateEntryVisuals(entry, delta, elapsed, motion);
         updateLabelDistance(entry.label, entry.selected, camera.position.distanceTo(entry.label.position), {
-          hover: entry.hover, dim: entry.dim,
+          hover: entry.hover, dim: entry.dim, viewScale: frameRef.current.scale,
         });
       });
       if (routeRef.current) updateRouteVisual(routeRef.current, delta, elapsed, motion, modeRef.current);
@@ -659,7 +724,7 @@ export default function CampusScene({
           if (intro.startedAt == null) intro.startedAt = elapsed;
           progress = Math.min((elapsed - intro.startedAt) / INTRO_SECONDS, 1);
         }
-        applyIntroPose(camera, controls, START_CAMERA, progress);
+        applyIntroPose(camera, controls, frameRef.current.start, progress, frameRef.current.scale);
         if (progress >= 1) {
           settleCamera();
           onIntroEndRef.current?.();
@@ -672,7 +737,7 @@ export default function CampusScene({
           intro.state = 'skipping';
           controls.enabled = true;
           director.flyTo({
-            position: START_CAMERA, target: ORIGIN, fov: NORMAL_FOV, duration: motion ? FLIGHT.intro : 0,
+            position: frameRef.current.start, target: ORIGIN, fov: NORMAL_FOV, duration: motion ? FLIGHT.intro : 0,
           });
         }
         director.update(elapsed);
@@ -683,6 +748,27 @@ export default function CampusScene({
       }
       // The frame time makes the idle drift's speed independent of the display's refresh rate.
       controls.update(delta);
+      const tiles = tilesRendererRef.current;
+      if (tiles) {
+        camera.updateMatrixWorld();
+        scene.updateMatrixWorld(true);
+        tiles.update();
+        if (elapsed - lastTerrainSnap > 0.75) {
+          lastTerrainSnap = elapsed;
+          terrainRaycaster.ray.direction.set(0, -1, 0);
+          terrainRaycaster.far = 5000;
+          markers.forEach((marker) => {
+            const ground = marker.userData.groundPoint;
+            if (!ground) return;
+            terrainRaycaster.ray.origin.set(ground.x, 2500, ground.z);
+            const hit = terrainRaycaster.intersectObject(tiles.group, true)[0];
+            if (hit) {
+              marker.userData.groundY = hit.point.y;
+              marker.userData.baseY = hit.point.y + marker.userData.floorOffset;
+            }
+          });
+        }
+      }
       renderer.render(scene, camera);
       if (!readyFired) {
         readyFired = true;
@@ -696,6 +782,7 @@ export default function CampusScene({
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
+      tilesRendererRef.current?.setResolutionFromRenderer(camera, renderer);
     };
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(mount);
@@ -717,6 +804,14 @@ export default function CampusScene({
       controls.dispose();
       viewRef.current = null;
       envRef.current = null;
+      if (tilesRendererRef.current) {
+        tilesRendererRef.current.dispose();
+        tilesRendererRef.current = null;
+      }
+      if (tilesFrameRef.current) {
+        scene.remove(tilesFrameRef.current);
+        tilesFrameRef.current = null;
+      }
       if (modelRef.current) disposeObject(modelRef.current);
       disposeObject(placeholder.group);
       disposeObject(labels);
@@ -740,6 +835,48 @@ export default function CampusScene({
     };
   }, []);
 
+  // Switches between the placeholder campus's camera frame and the true-size frame of the streamed tiles: overview
+  // pose, zoom limit, clip distance, fog, intro scale, and whether positions are projected true-size.
+  const enterFrame = useCallback((next) => {
+    frameRef.current = next;
+    const tiles = next === TILES_FRAME;
+    const view = viewRef.current;
+    const ctx = envRef.current;
+    if (view) {
+      view.camera.far = tiles ? 10000 : 1000;
+      view.camera.updateProjectionMatrix();
+      // While the intro is parked or playing, the render loop owns the distance limit.
+      if (view.controls.enabled) view.controls.maxDistance = next.maxDistance;
+    }
+    if (ctx) {
+      ctx.viewScale = next.scale;
+      // The tiles bring their own ground; the placeholder's dark horizon disc would cut through the terrain.
+      ctx.farGround.visible = !tiles;
+      applyEnvironment(ctx, modeRef.current);
+    }
+    setTilesActive(tiles);
+    // Zones are re-projected for the new frame, so the selection effect flies to the selected place again;
+    // with nothing selected, show the whole campus.
+    flownToRef.current = null;
+    if (directorRef.current && !selectedRef.current && introRef.current.state === 'off') {
+      flyToOverview(directorRef.current, motionRef.current, next.start);
+    }
+  }, []);
+
+  // Where a latitude / longitude lands in the scene: true size around UCER_CENTER once the tiles stream in, else the
+  // placeholder campus's compact layout.
+  const project = tilesActive ? locationToScenePoint : locationToPlaceholderPoint;
+  // Zones built from API locations carry their coordinates, so they follow the active layout. The built-in sample
+  // zones have none, belong to the placeholder campus, and stay where they are.
+  const displayZones = useMemo(() => {
+    if (!tilesActive) return zones;
+    return zones.map((zone) => {
+      if (zone.latitude == null || zone.longitude == null) return zone;
+      const { x, z } = locationToScenePoint(zone.latitude, zone.longitude);
+      return { ...zone, x, z };
+    });
+  }, [zones, tilesActive]);
+
   // Rebuild buildings, labels and street lights whenever the location list changes.
   useEffect(() => {
     const ctx = envRef.current;
@@ -757,7 +894,7 @@ export default function CampusScene({
     }
 
     const footprints = [];
-    zones.forEach((zone, index) => {
+    displayZones.forEach((zone, index) => {
       const objects = addBuilding(buildings, labels, ctx.kit, zone, index, modeRef.current);
       // Built unselected; the highlight effect below restyles the selected zone, if any.
       zoneObjectsRef.current.set(zone.id, { ...objects, zone, selected: false });
@@ -774,7 +911,7 @@ export default function CampusScene({
     // they are disposed meanwhile, e.g. by a rebuild of this list or by leaving the page.
     ctx.renderer.compile(ctx.scene, ctx.camera);
     ctx.warmup = 2;
-  }, [zones]);
+  }, [displayZones]);
 
   // Day / night: restyle in place. Camera, controls and selection are untouched.
   useEffect(() => {
@@ -824,7 +961,7 @@ export default function CampusScene({
         duration: motionRef.current ? FLIGHT.fov : 0,
       });
     }
-  }, [selectedZoneId, zones]);
+  }, [selectedZoneId, displayZones]);
 
   // Page-triggered camera moves: "Back to overview", and re-focusing a place that is already selected.
   const overviewSeen = useRef(overviewSignal);
@@ -833,7 +970,7 @@ export default function CampusScene({
     overviewSeen.current = overviewSignal;
     if (!directorRef.current) return;
     flownToRef.current = null;
-    flyToOverview(directorRef.current, motionRef.current);
+    flyToOverview(directorRef.current, motionRef.current, frameRef.current.start);
   }, [overviewSignal]);
 
   const refocusSeen = useRef(refocusSignal);
@@ -872,8 +1009,8 @@ export default function CampusScene({
   useEffect(() => {
     const visual = routeRef.current;
     if (!visual || !route?.from || !route?.to) return;
-    const from = locationToScenePoint(route.from.latitude, route.from.longitude);
-    const to = locationToScenePoint(route.to.latitude, route.to.longitude);
+    const from = project(route.from.latitude, route.from.longitude);
+    const to = project(route.to.latitude, route.to.longitude);
     visual.from.set(from.x, ROUTE_Y, from.z);
     visual.to.set(to.x, ROUTE_Y, to.z);
     // The ring around the destination clears the building's corners.
@@ -890,7 +1027,7 @@ export default function CampusScene({
       ...routeFramePose(visual, view.camera, view.controls.target, NORMAL_FOV),
       duration: motionRef.current ? FLIGHT.select : 0,
     });
-  }, [route]);
+  }, [route, project]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -898,6 +1035,9 @@ export default function CampusScene({
 
     let cancelled = false;
     const modelFormat = getModelFormat(campusModelUrl);
+    const missingHint = modelFormat === 'tileset'
+      ? 'Place the Metashape 3D Tiles export at public/models/ucer-campus-tiles/tileset.json.'
+      : 'Place the Metashape export at public/models/ucer-campus.glb.';
 
     // reason: 'missing' when no model file is installed, 'error' when one exists but could not be used.
     const showFallback = (message, reason = 'error') => {
@@ -929,6 +1069,19 @@ export default function CampusScene({
       modelRef.current = null;
     };
 
+    // Streamed tiles live in their own East-North-Up frame; dropping them also restores the placeholder's camera frame.
+    const removeCurrentTiles = () => {
+      if (tilesRendererRef.current) {
+        tilesRendererRef.current.dispose();
+        tilesRendererRef.current = null;
+      }
+      if (tilesFrameRef.current) {
+        scene.remove(tilesFrameRef.current);
+        tilesFrameRef.current = null;
+        enterFrame(PLACEHOLDER_FRAME);
+      }
+    };
+
     const addModel = (object) => {
       if (cancelled) {
         disposeObject(object);
@@ -936,6 +1089,7 @@ export default function CampusScene({
       }
 
       removeCurrentModel();
+      removeCurrentTiles();
       prepareCampusModel(object);
       scene.add(object);
       modelRef.current = object;
@@ -955,6 +1109,7 @@ export default function CampusScene({
       });
 
       if (modelFormat === 'gltf') {
+        removeCurrentTiles();
         new GLTFLoader().load(
           campusModelUrl,
           (gltf) => addModel(gltf.scene),
@@ -965,6 +1120,7 @@ export default function CampusScene({
       }
 
       if (modelFormat === 'obj') {
+        removeCurrentTiles();
         new OBJLoader().load(
           campusModelUrl,
           addModel,
@@ -974,7 +1130,60 @@ export default function CampusScene({
         return;
       }
 
-      showFallback('Unsupported model format. Use GLB, GLTF, or OBJ.');
+      if (modelFormat === 'tileset') {
+        const camera = viewRef.current?.camera;
+        const renderer = envRef.current?.renderer;
+        if (!camera || !renderer) {
+          showFallback('3D viewer is not ready. Reload the page to retry.');
+          return;
+        }
+
+        removeCurrentModel();
+        removeCurrentTiles();
+        const tiles = new TilesRenderer(campusModelUrl);
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath('/draco/');
+        tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader }));
+        const frame = new THREE.Group();
+        frame.name = 'campus-east-north-up-frame';
+        frame.matrixAutoUpdate = false;
+        frame.matrix.copy(createEcefToCampusFrame());
+        frame.add(tiles.group);
+        scene.add(frame);
+        frame.updateMatrixWorld(true);
+
+        tiles.setCamera(camera);
+        tiles.setResolutionFromRenderer(camera, renderer);
+        tiles.errorTarget = 4;
+        tilesRendererRef.current = tiles;
+        tilesFrameRef.current = frame;
+
+        // The placeholder stays until the first tile is in, so the scene is never empty.
+        let entered = false;
+        const handleFirstTile = () => {
+          if (cancelled || entered) return;
+          entered = true;
+          placeholderRef.current.visible = false;
+          enterFrame(TILES_FRAME);
+          onModelStatus?.({
+            state: 'loaded',
+            label: 'Streaming campus',
+            detail: '3D Tiles · visible detail streams as you navigate',
+          });
+        };
+        // A failed tile is skipped; a failed tileset (no `tile` on the event) falls back to the placeholder.
+        const handleLoadError = (event) => {
+          if (event.tile || cancelled) return;
+          removeCurrentTiles();
+          showFallback(`Could not load campus tiles: ${event.error?.message ?? 'check the tileset files'}`);
+        };
+
+        tiles.addEventListener('load-model', handleFirstTile);
+        tiles.addEventListener('load-error', handleLoadError);
+        return;
+      }
+
+      showFallback('Unsupported model format. Use a 3D Tiles tileset, GLB, GLTF, or OBJ.');
     };
 
     if (campusModelUrl.startsWith('blob:')) {
@@ -985,15 +1194,16 @@ export default function CampusScene({
           const type = response.headers.get('content-type') ?? '';
           // Vite's SPA fallback answers unknown paths with index.html; treat that as missing.
           if (response.ok && !type.includes('text/html')) loadModel();
-          else showFallback('Place the Metashape export at public/models/ucer-campus.glb.', 'missing');
+          else showFallback(missingHint, 'missing');
         })
-        .catch(() => showFallback('Place the Metashape export at public/models/ucer-campus.glb.', 'missing'));
+        .catch(() => showFallback(missingHint, 'missing'));
     }
 
     return () => {
       cancelled = true;
+      removeCurrentTiles();
     };
-  }, [campusModelUrl, onModelStatus]);
+  }, [campusModelUrl, enterFrame, onModelStatus]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -1019,11 +1229,19 @@ export default function CampusScene({
         markersRef.current.set(id, marker);
       }
 
-      const point = locationToScenePoint(ping.latitude, ping.longitude);
+      const point = project(ping.latitude, ping.longitude);
+      // Your own pin follows the floor picked on the page; everyone else's comes from their last ping.
+      const isSelectedUser = String(selectedUserId) === id || String(currentPosition?.userId) === id;
+      const markerFloorLevel = isSelectedUser ? floorLevel : (ping.floorLevel ?? 0);
+      // Pins rest on the terrain height the render loop finds (tiles only), raised by the floor they are on.
+      if (!tilesActive) marker.userData.groundY = 0;
+      marker.userData.groundPoint = { x: point.x, z: point.z };
+      marker.userData.floorOffset = Math.max(0, Number(markerFloorLevel) || 0) * CAMPUS_FLOOR_HEIGHT_METERS;
+      marker.userData.baseY = (marker.userData.groundY ?? 0) + marker.userData.floorOffset;
       marker.position.x = point.x;
       marker.position.z = point.z;
     });
-  }, [currentPosition, locations]);
+  }, [currentPosition, floorLevel, locations, project, selectedUserId, tilesActive]);
 
   // Dolly the camera toward / away from the orbit target, within the OrbitControls limits.
   const zoom = (factor) => {
@@ -1045,7 +1263,7 @@ export default function CampusScene({
   const resetView = () => {
     if (!directorRef.current) return;
     flownToRef.current = null;
-    flyToOverview(directorRef.current, motionRef.current);
+    flyToOverview(directorRef.current, motionRef.current, frameRef.current.start);
   };
 
   if (unavailable) {

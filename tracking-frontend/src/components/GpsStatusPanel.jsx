@@ -13,7 +13,15 @@ const STATUS = {
   insecure: { tone: 'critical', title: 'Secure connection required', text: 'Browsers only allow location on HTTPS or localhost. Open the app over HTTPS to use GPS.' },
 };
 
-export default function GpsStatusPanel({ geo, share, onShareChange }) {
+const FLOORS = [
+  { value: 0, label: 'Ground floor' },
+  { value: 1, label: 'Floor 1' },
+  { value: 2, label: 'Floor 2' },
+  { value: 3, label: 'Floor 3' },
+  { value: 4, label: 'Floor 4' },
+];
+
+export default function GpsStatusPanel({ geo, share, onShareChange, floorLevel = 0, onFloorLevel }) {
   const info = STATUS[geo.status] ?? STATUS.idle;
   const canStart = !['unsupported', 'insecure'].includes(geo.status);
 
@@ -45,6 +53,14 @@ export default function GpsStatusPanel({ geo, share, onShareChange }) {
           <button type="button" className="btn btn-primary btn-sm" onClick={geo.start} disabled={!canStart}>
             <Icon name="locate" size={16} /> {geo.status === 'denied' ? 'Try again' : 'Use my location'}
           </button>
+        )}
+        {onFloorLevel && (
+          <label className="gps-floor">
+            <span>User floor</span>
+            <select className="input" value={floorLevel} onChange={(e) => onFloorLevel(Number(e.target.value))}>
+              {FLOORS.map((floor) => <option key={floor.value} value={floor.value}>{floor.label}</option>)}
+            </select>
+          </label>
         )}
         <label className="check">
           <input type="checkbox" checked={share} onChange={(e) => onShareChange(e.target.checked)} />

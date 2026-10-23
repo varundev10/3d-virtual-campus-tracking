@@ -6,6 +6,8 @@
 **/node_modules/
 **/dist/
 **/build/
+tracking-frontend/.npm-cache/
+tracking-frontend/public/models/ucer-campus-tiles/
 
 # IDE files
 .idea/
@@ -20,8 +22,14 @@ Thumbs.db
 # Sensitive local configurations
 **/application.properties
 .env
+.env.*
+!.env.example
 # Local embedded database
 **/data/
+*.db
 *.mv.db
 *.trace.db
+
+# Local screenshots and QA captures
+screenshots/
 

@@ -1,5 +1,5 @@
 export const DEFAULT_CAMPUS_MODEL_URL =
-  import.meta.env.VITE_CAMPUS_MODEL_URL ?? '/models/ucer-campus.glb';
+  import.meta.env.VITE_CAMPUS_MODEL_URL ?? '/models/ucer-campus-tiles/tileset.json';
 
 export const CAMPUS_MODEL_TRANSFORM = {
   scale: Number(import.meta.env.VITE_CAMPUS_MODEL_SCALE ?? 1),
@@ -17,6 +17,7 @@ export const CAMPUS_MODEL_TRANSFORM = {
 
 export function getModelFormat(url) {
   const cleanUrl = url.split('?')[0].toLowerCase();
+  if (cleanUrl.endsWith('tileset.json')) return 'tileset';
   if (cleanUrl.endsWith('.glb') || cleanUrl.endsWith('.gltf')) return 'gltf';
   if (cleanUrl.endsWith('.obj')) return 'obj';
   return 'unknown';

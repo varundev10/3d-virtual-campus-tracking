@@ -50,6 +50,7 @@ public class LocationService {
         ping.setUserId(request.getUserId());
         ping.setLatitude(latitude);
         ping.setLongitude(longitude);
+        ping.setFloorLevel(request.getFloorLevel() == null ? 0 : request.getFloorLevel());
         ping.setBeaconId(request.getBeaconId());
         ping.setWifiPointId(request.getWifiPointId());
         ping.setRfidTagId(request.getRfidTagId());

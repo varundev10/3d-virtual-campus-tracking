@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SecurityAndAdminApiTests {
 
     // Inside the campus geofence (UCER_CENTER).
-    private static final double IN_LAT = 25.4305, IN_LNG = 81.7704;
+    private static final double IN_LAT = 25.3438271534, IN_LNG = 81.9106717343;
 
     @Autowired
     private MockMvc mvc;

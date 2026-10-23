@@ -12,6 +12,7 @@
   "dependencies": {
     "@stomp/stompjs": "^7.1.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "3d-tiles-renderer": "^0.5.3",
     "leaflet": "^1.9.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
