@@ -203,6 +203,10 @@
   --accent-soft-2: rgba(255, 45, 168, 0.22);
   --accent-line: rgba(255, 45, 168, 0.55);
 
+  /* Halos for lit edges: the active-row bars, the nav underline, the intro bar and the live beacon. */
+  --glow: color-mix(in srgb, var(--accent) 45%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+
   /* Chartreuse: selected, destination, the interruption. */
   --pop: var(--lime);
   --pop-2: #e3ff7d;
@@ -317,6 +321,8 @@
   --accent-soft: rgba(255, 45, 168, 0.1);
   --accent-soft-2: rgba(255, 45, 168, 0.18);
   --accent-line: rgba(196, 0, 122, 0.5);
+  --glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 
   /* Lime is a fill in the light world (1.06:1 on soft), always with jet type and a jet edge. */
   --pop: var(--lime);
@@ -417,6 +423,8 @@
   --accent-soft: rgba(11, 11, 11, 0.1);
   --accent-soft-2: rgba(11, 11, 11, 0.18);
   --accent-line: rgba(11, 11, 11, 0.6);
+  --glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   --pop: var(--jet);
   --pop-2: #262626;
   --pop-ink: var(--lime);
@@ -460,6 +468,8 @@
   --accent-2: #262626;
   --accent-ink: var(--pink);
   --accent-text: var(--jet);
+  --glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   --pop: var(--lime);
   --pop-ink: var(--jet);
   --pop-text: var(--jet);
