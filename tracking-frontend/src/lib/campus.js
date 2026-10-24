@@ -1,3 +1,5 @@
+import { CAMPUS_BUILDINGS } from './campus-buildings.js';
+
 export const UCER_CENTER = {
   lat: 25.3438271534,
   lng: 81.9106717343,
@@ -45,13 +47,15 @@ export const CAMPUS_GEOFENCE = [
   [25.3448570990, 81.9111835935],
 ];
 
-export const CAMPUS_ZONES = [
-  { id: 'A-BLOCK', name: 'Academic Block A', x: -34, z: -18, color: '#3f7cac' },
-  { id: 'B-BLOCK', name: 'Academic Block B', x: 16, z: -24, color: '#5b8e7d' },
-  { id: 'LABS', name: 'Labs Complex', x: -2, z: 18, color: '#c76f4a' },
-  { id: 'LIB', name: 'Library', x: 42, z: 12, color: '#7d6fb2' },
-  { id: 'ADMIN', name: 'Admin Office', x: -44, z: 26, color: '#b68b3f' },
-];
+// The footprint and height of the generated placeholder building for the index-th location. Shared by the 3D scene
+// and the 2D site plan so the two always show the same campus.
+export function buildingSize(index) {
+  return {
+    height: 9 + (index % 3) * 3,
+    width: 16 + (index % 2) * 4,
+    depth: 13 + (index % 3) * 3,
+  };
+}
 
 export function locationToScenePoint(latitude, longitude) {
   const metersPerDegreeLat = 111_320;
@@ -62,6 +66,26 @@ export function locationToScenePoint(latitude, longitude) {
     x,
     y: 0,
     z,
+  };
+}
+
+// The placeholder campus is a compact stand-in, about 0.45x real size, whose ground is only ~140 x 100 units.
+// Points are pulled in and kept on that ground; the streamed Metashape tiles use locationToScenePoint (true metres).
+export const PLACEHOLDER_SCALE = 0.45;
+
+// It is centred on the middle of the real places rather than on UCER_CENTER, so the default view frames all of them
+// (the buildings sit off to one side of the campus centre) and stays framed as places are added.
+const meanOf = (key) => CAMPUS_BUILDINGS.reduce((sum, building) => sum + building[key], 0) / CAMPUS_BUILDINGS.length;
+const PLACEHOLDER_ORIGIN = CAMPUS_BUILDINGS.length
+  ? locationToScenePoint(meanOf('latitude'), meanOf('longitude'))
+  : { x: 0, z: 0 };
+
+export function locationToPlaceholderPoint(latitude, longitude) {
+  const { x, z } = locationToScenePoint(latitude, longitude);
+  return {
+    x: Math.max(-70, Math.min(70, (x - PLACEHOLDER_ORIGIN.x) * PLACEHOLDER_SCALE)),
+    y: 0,
+    z: Math.max(-48, Math.min(48, (z - PLACEHOLDER_ORIGIN.z) * PLACEHOLDER_SCALE)),
   };
 }
 

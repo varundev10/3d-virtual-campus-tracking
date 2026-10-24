@@ -22,5 +22,14 @@ Thumbs.db
 # Sensitive local configurations
 **/application.properties
 .env
-#zip files 
-*.zip
+.env.*
+!.env.example
+# Local embedded database
+**/data/
+*.db
+*.mv.db
+*.trace.db
+
+# Local screenshots and QA captures
+screenshots/
+

@@ -1,0 +1,486 @@
+/* ==========================================================================
+   Design tokens: AFTER DARK. Jet black x Hot pink x Chartreuse.
+
+   Concept: the campus never switches off. A control room at 2 a.m.: a black map, every person a pink beacon, every
+   destination a chartreuse waypoint. Signature motif: the asterisk "ping" (components/fx/Motif.jsx).
+
+     Jet   (#0B0B0B)  = the canvas, ~65% of every screen.
+     Pink  (#FF2DA8)  = the statement, ~20%: headlines, primary actions, active states, and people (live beacons).
+     Lime  (#D4FF3F)  = the interruption, ~10%: selection, destinations, the route, the focus ring.
+     Neutrals         = the remaining ~5%.
+
+   Colour rules that hold everywhere:
+     - Text that sits ON pink or lime is always jet. Pink and lime never carry each other's text.
+     - Dark is the identity and uses the brand hex values exactly. The light world (Soft) is kept because the app has a
+       theme toggle, but small pink text, muted text and lime need darker derived tones there, because the brand values
+       fail WCAG on #F5F5F2 (pink 3.10:1, muted 2.31:1, lime 1.06:1). Those derived values are marked DERIVED below.
+     - Form-field edges need 3:1 against the surface; the brief's --border (#303030) is only 1.36:1, so fields use
+       --field-line (#6E6E6E, 3.52:1). --border stays for dividers and card edges.
+
+   Components only read the SEMANTIC tokens (--bg, --ink, --accent, --pop, ...), so the whole interface and the 3D
+   scene (scene/environment.js mirrors these) change world together when data-theme flips. Blocks that must stay dark
+   in either world (admin rail, intro, toast) re-apply the dark set; .is-lime / .is-pink are solid
+   colour blocks.
+   ========================================================================== */
+
+/* Tokens that do not change with the theme. */
+:root {
+  /* ---- Brand palette: the exact values from the brief. Never overridden per theme. ---- */
+  --jet: #0B0B0B;
+  --pink: #FF2DA8;
+  --lime: #D4FF3F;
+  --white: #FFFFFF;
+  --soft: #F5F5F2;
+  --muted: #A3A3A3;
+  --surface: #171717;
+  --border: #303030;
+  --error: #FF5A65;
+  --success: #62E6A7;
+
+  /* ---- Type. Display: Bricolage Grotesque (variable, has a width axis, already in the project). Body: Inter.
+     Mono for micro-labels, codes and coordinates: the control-room voice. ---- */
+  --display: "Bricolage Grotesque", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+
+  /* Bricolage's width axis: posters condensed, interface headings a little narrower than normal. Where the axis is
+     unavailable the face renders at its normal width. */
+  --stretch-display: 78%;
+  --stretch-ui: 90%;
+
+  /* Type scale. Display sizes are fluid; body is 1rem-1.125rem; micro-labels 0.7rem-0.85rem uppercase, tracked. */
+  --text-2xs: 0.7rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.85rem;
+  --text-md: 0.95rem;
+  --text-base: 1rem;
+  --text-body: 1.0625rem;
+  --text-lg: 1.3rem;
+  --text-xl: 2.3rem;
+  --text-2xl: 3.2rem;
+  --text-hero: clamp(3.5rem, 10vw, 9rem);
+  --text-page: clamp(2.5rem, 6vw, 6rem);
+  --text-section: clamp(2rem, 4vw, 4rem);
+  --track-tight: -0.03em;
+  --track-display: -0.045em;
+  --track-label: 0.14em;
+  --leading-display: 0.9;
+  --leading-tight: 1;
+  --leading-body: 1.6;
+
+  /* ---- Spacing (4px base) and the 12-column grid ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+  --grid-cols: 12;
+  --grid-gap: clamp(12px, 2vw, 24px);
+
+  /* ---- Shape. Panels are near-square (control room); buttons, chips and badges are pills (festival). ---- */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+  --bw: 1px;
+  --hud-radius: var(--radius);
+  --hud-inset: 16px;
+  --blur: saturate(140%) blur(14px);
+
+  /* ---- Motion. Tokens, not one-offs. --ease eases out; --spring overshoots a little. ---- */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease: var(--ease-out-expo);
+  --ease-in-out: var(--ease-in-out-quart);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-instant: 80ms;
+  --dur-fast: 150ms;
+  --dur-med: 240ms;
+  --dur-base: 300ms;
+  --dur-enter: 520ms;
+  --dur-slow: 700ms;
+  --dur-scene: 900ms;
+  --fast: var(--dur-fast);
+  --med: var(--dur-med);
+
+  /* ---- Effects (see styles/fx.css). Values here so they can be tuned in one place. ---- */
+  --grain-opacity: 0.03;
+  --tilt-max: 6deg;
+  --marquee-duration: 38s;
+
+  /* ---- Stacking layers. Scene layers sit inside the explorer stage; the rest are page-level. ---- */
+  --z-below: -1;
+  --z-scene-fade: 1;
+  --z-scene-hint: 2;
+  --z-scene-controls: 3;
+  --z-scene-panel: 4;
+  --z-scene-toolbar: 5;
+  --z-scene-overlay: 6;
+  --z-admin-topbar: 20;
+  --z-bottom-nav: 30;
+  --z-header: 40;
+  --z-popover: 50;
+  --z-scrim: 50;
+  --z-drawer: 60;
+  --z-skip-link: 100;
+  --z-toast: 1000;
+  --z-progress: 1100;
+  --z-transition: 1500;
+  --z-grain: 1800;
+  --z-cursor: 2000;
+  --z-loader: 3000;
+
+  /* ---- Layout ---- */
+  --header-h: 72px;
+  --bottom-nav-h: 0px;
+  --sidebar-open-w: 264px;
+  --sidebar-rail-w: 80px;
+  --panel-w: 384px;
+  --page-gutter: clamp(16px, 4vw, 40px);
+
+  font-family: var(--font);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* AFTER DARK: the identity, and the default. Also the world inside the always-dark blocks. */
+:root,
+:root[data-theme="dark"],
+.toast,
+.admin-sidebar,
+.cine,
+.is-dark {
+  color-scheme: dark;
+
+  --bg: var(--jet);
+  --surface: #171717;
+  --surface-2: #1f1f1f;
+  --surface-3: #2a2a2a;
+  --field: #101010;
+
+  --ink: var(--white);
+  --ink-2: #e2e2e2;
+  --ink-muted: var(--muted);
+  --ink-faint: #8a8a8a;
+
+  --line: var(--border);
+  --line-soft: #222222;
+  --line-strong: #4a4a4a;
+  --field-line: #6e6e6e;
+  --wash: rgba(255, 255, 255, 0.05);
+  --wash-2: rgba(255, 255, 255, 0.09);
+  --scrim: rgba(0, 0, 0, 0.78);
+
+  /* Borders over shadows: --stroke is the hairline round cards and controls. The old hard "sticker" shadows are now
+     plain lifts, used only for things that float over the 3D stage. */
+  --stroke: var(--border);
+  /* Keyboard focus: a chartreuse ring with an offset (jet on the light world and on solid colour blocks, where
+     lime would be invisible). */
+  --focus: var(--lime);
+  --hard: #000000;
+  --hard-1: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --hard-2: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --hard-3: 0 16px 40px rgba(0, 0, 0, 0.6);
+
+  /* Pink: the primary colour. --accent is a fill (always paired with --accent-ink); --accent-text is pink as type. */
+  --brand: var(--pink);
+  --accent: var(--pink);
+  --accent-2: #ff5bbb;
+  --accent-ink: var(--jet);
+  --accent-text: var(--pink);
+  --accent-soft: rgba(255, 45, 168, 0.12);
+  --accent-soft-2: rgba(255, 45, 168, 0.22);
+  --accent-line: rgba(255, 45, 168, 0.55);
+
+  /* Halos for lit edges: the active-row bars, the nav underline, the intro bar and the live beacon. */
+  --glow: color-mix(in srgb, var(--accent) 45%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+
+  /* Chartreuse: selected, destination, the interruption. */
+  --pop: var(--lime);
+  --pop-2: #e3ff7d;
+  --pop-ink: var(--jet);
+  --pop-soft: rgba(212, 255, 63, 0.14);
+
+  /* Status. Always shown with an icon and a word, never by colour alone. The brief has no warning colour; amber is
+     the one extra, so "needs attention" is distinguishable from "error" without leaning on pink. */
+  --good: var(--success);
+  --good-soft: rgba(98, 230, 167, 0.12);
+  --good-line: rgba(98, 230, 167, 0.5);
+  --warning: #ffb454;
+  --warning-soft: rgba(255, 180, 84, 0.13);
+  --warning-line: rgba(255, 180, 84, 0.5);
+  --danger: var(--error);
+  --danger-soft: rgba(255, 90, 101, 0.13);
+  --danger-line: rgba(255, 90, 101, 0.5);
+  --danger-ink: var(--jet);
+  --series-1: var(--pink);
+
+  --shadow-float: var(--hard-2);
+  --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 0 0 1px var(--border), 0 30px 80px rgba(0, 0, 0, 0.75);
+
+  /* HUD: floating panels over the 3D stage. A thin frame; corner brackets are drawn by .hud-frame (fx.css). */
+  --hud-bg: rgba(11, 11, 11, 0.84);
+  --hud-bg-strong: #101010;
+  --hud-border: var(--line-strong);
+  --hud-shadow: var(--hard-2);
+
+  /* Page ambience: a faint dot grid, a pink aura in the top-right, and a pink spot that follows the pointer. */
+  --dot: rgba(255, 255, 255, 0.06);
+  --page-glow: rgba(255, 45, 168, 0.1);
+  --page-spot: rgba(255, 45, 168, 0.08);
+  --contour: rgba(255, 255, 255, 0.07);
+  --grid-line: rgba(255, 255, 255, 0.045);
+  --grain-opacity: 0.03;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Brand colours used as type or line colour on the page itself. In the dark world chartreuse and pink can be text;
+     in the light world they are only ever fills, so each of these swaps to jet there. Components read the token and
+     never branch on the theme. */
+  --pop-text: var(--lime);
+  --progress: var(--lime);
+  --bracket: var(--lime);
+  --wordmark-hover: var(--lime);
+  --clear-filter: invert(0.75); /* the native search-clear glyph is dark by default */
+
+  /* Sign-in hero: pink display type with one chartreuse word. */
+  --hero-ink: var(--pink);
+  --hero-mark-ink: var(--lime);
+  --hero-mark-bg: transparent;
+
+  /* Ticker strip: pink on black. */
+  --marquee-bg: var(--jet);
+  --marquee-ink: var(--pink);
+  --marquee-edge: var(--border);
+
+  /* The two offset layers behind the glitching 404. */
+  --glitch-a: var(--lime);
+  --glitch-b: var(--white);
+
+  /* Site plan (styles/atlas.css): graphite buildings, pink roofs, chartreuse windows and boundary. */
+  --atlas-ink: var(--jet);
+  --atlas-front: var(--surface-3);
+  --atlas-side: var(--surface-2);
+  --atlas-roof: var(--accent-2);
+  --atlas-window: var(--pop);
+  --atlas-tree: var(--good);
+  --atlas-fence: var(--pop);
+  --atlas-ground-mix: 7%;
+
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* SOFT: the light world. Same structure, derived tones where the brand values fail contrast (see top of file). */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: var(--soft);
+  --surface: #ffffff;
+  --surface-2: #ecece8;
+  --surface-3: #deded8;
+  --field: #ffffff;
+
+  --ink: var(--jet);
+  --ink-2: #2b2b2b;
+  --ink-muted: #5c5c5c; /* DERIVED: 6.12:1 on --soft; the brand --muted is 2.31:1 here */
+  --ink-faint: #6b6b6b;
+
+  --line: rgba(11, 11, 11, 0.16);
+  --line-soft: rgba(11, 11, 11, 0.08);
+  --line-strong: rgba(11, 11, 11, 0.42);
+  --field-line: #6b6b6b;
+  --wash: rgba(11, 11, 11, 0.045);
+  --wash-2: rgba(11, 11, 11, 0.085);
+  --scrim: rgba(11, 11, 11, 0.6);
+
+  --stroke: var(--jet);
+  --focus: var(--jet);
+  --hard: #0b0b0b;
+  --hard-1: 0 2px 8px rgba(11, 11, 11, 0.14);
+  --hard-2: 0 8px 24px rgba(11, 11, 11, 0.16);
+  --hard-3: 0 16px 40px rgba(11, 11, 11, 0.2);
+
+  --brand: var(--pink);
+  --accent: var(--pink);
+  --accent-2: #ff5bbb;
+  --accent-ink: var(--jet);
+  --accent-text: #c4007a; /* DERIVED: 5.30:1 on --soft; the brand pink is 3.10:1 here (large display type only) */
+  --accent-soft: rgba(255, 45, 168, 0.1);
+  --accent-soft-2: rgba(255, 45, 168, 0.18);
+  --accent-line: rgba(196, 0, 122, 0.5);
+  --glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+
+  /* Lime is a fill in the light world (1.06:1 on soft), always with jet type and a jet edge. */
+  --pop: var(--lime);
+  --pop-2: #e3ff7d;
+  --pop-ink: var(--jet);
+  --pop-soft: rgba(212, 255, 63, 0.5);
+
+  --good: #0b7a4b;
+  --good-soft: rgba(11, 122, 75, 0.1);
+  --good-line: rgba(11, 122, 75, 0.45);
+  --warning: #8a5300;
+  --warning-soft: rgba(138, 83, 0, 0.1);
+  --warning-line: rgba(138, 83, 0, 0.45);
+  --danger: #c41e3a;
+  --danger-soft: rgba(196, 30, 58, 0.08);
+  --danger-line: rgba(196, 30, 58, 0.45);
+  --danger-ink: #ffffff;
+  --series-1: #c4007a;
+
+  --shadow-float: var(--hard-2);
+  --shadow-pop: 0 14px 40px rgba(11, 11, 11, 0.2);
+  --shadow-modal: 0 0 0 1px var(--jet), 0 30px 80px rgba(11, 11, 11, 0.3);
+
+  --hud-bg: rgba(255, 255, 255, 0.92);
+  --hud-bg-strong: #ffffff;
+  --hud-border: var(--jet);
+  --hud-shadow: var(--hard-2);
+
+  --dot: rgba(11, 11, 11, 0.12);
+  --page-glow: rgba(255, 45, 168, 0.1);
+  --page-spot: rgba(212, 255, 63, 0.6);
+  --contour: rgba(11, 11, 11, 0.08);
+  --grid-line: rgba(11, 11, 11, 0.05);
+  --grain-opacity: 0.02;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.4 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Pink and chartreuse are fills here, never type: type and line colour fall back to jet. */
+  --pop-text: var(--jet);
+  --progress: var(--jet);
+  --bracket: var(--jet);
+  --wordmark-hover: var(--jet);
+  --clear-filter: none;
+
+  --hero-ink: var(--jet);
+  --hero-mark-ink: var(--jet);
+  --hero-mark-bg: var(--lime);
+
+  --marquee-bg: var(--pink);
+  --marquee-ink: var(--jet);
+  --marquee-edge: var(--jet);
+
+  --glitch-a: var(--pink);
+  --glitch-b: var(--jet);
+
+  --atlas-ink: var(--jet);
+  --atlas-front: var(--surface);
+  --atlas-side: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  --atlas-roof: var(--accent);
+  --atlas-window: var(--accent);
+  --atlas-tree: var(--pop);
+  --atlas-fence: var(--accent);
+  --atlas-ground-mix: 16%;
+
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* SOLID COLOUR BLOCKS. A lime block is a destination (the route card); a pink block is a takeover (the mobile menu).
+   Type on both is jet. Buttons inside flip to jet fills so they still read as the action. */
+.nav-card,
+.is-lime {
+  color-scheme: light;
+
+  --bg: var(--lime);
+  --surface: #e3ff7d;
+  --surface-2: #ecff9f;
+  --surface-3: #f3ffc2;
+  --field: rgba(11, 11, 11, 0.08);
+
+  --ink: var(--jet);
+  --ink-2: #1a1a1a;
+  --ink-muted: rgba(11, 11, 11, 0.72);
+  --ink-faint: rgba(11, 11, 11, 0.6);
+
+  --line: rgba(11, 11, 11, 0.28);
+  --line-soft: rgba(11, 11, 11, 0.16);
+  --line-strong: rgba(11, 11, 11, 0.6);
+  --field-line: rgba(11, 11, 11, 0.7);
+  --wash: rgba(11, 11, 11, 0.08);
+  --wash-2: rgba(11, 11, 11, 0.14);
+  --stroke: var(--jet);
+  --focus: var(--jet);
+
+  --accent: var(--jet);
+  --accent-2: #262626;
+  --accent-ink: var(--lime);
+  --accent-text: var(--jet);
+  --accent-soft: rgba(11, 11, 11, 0.1);
+  --accent-soft-2: rgba(11, 11, 11, 0.18);
+  --accent-line: rgba(11, 11, 11, 0.6);
+  --glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --pop: var(--jet);
+  --pop-2: #262626;
+  --pop-ink: var(--lime);
+
+  --good: #0b5c3a;
+  --good-soft: rgba(11, 11, 11, 0.1);
+  --good-line: rgba(11, 11, 11, 0.5);
+  --hud-bg: var(--lime);
+  --hud-bg-strong: var(--lime);
+  --hud-border: var(--jet);
+  --contour: rgba(11, 11, 11, 0.12);
+  --pop-text: var(--jet);
+  --bracket: var(--jet);
+
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.is-pink {
+  color-scheme: light;
+
+  --bg: var(--pink);
+  --surface: #ff5bbb;
+  --surface-2: #ff7cc9;
+  --surface-3: #ff9dd7;
+
+  --ink: var(--jet);
+  --ink-2: #1a1a1a;
+  --ink-muted: rgba(11, 11, 11, 0.78);
+  --ink-faint: rgba(11, 11, 11, 0.66);
+
+  --line: rgba(11, 11, 11, 0.3);
+  --line-soft: rgba(11, 11, 11, 0.18);
+  --line-strong: rgba(11, 11, 11, 0.62);
+  --wash: rgba(11, 11, 11, 0.08);
+  --wash-2: rgba(11, 11, 11, 0.14);
+  --stroke: var(--jet);
+  --focus: var(--jet);
+
+  --accent: var(--jet);
+  --accent-2: #262626;
+  --accent-ink: var(--pink);
+  --accent-text: var(--jet);
+  --glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --pop: var(--lime);
+  --pop-ink: var(--jet);
+  --pop-text: var(--jet);
+
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* RAVE MODE (components/fx/RaveMode.jsx): pink and lime trade places. Every accent token above is built from
+   --pink / --lime, so this one swap re-colours the interface. Cosmetic only; the 3D scene keeps its own palette. */
+:root.rave {
+  --pink: #D4FF3F;
+  --lime: #FF2DA8;
+}
