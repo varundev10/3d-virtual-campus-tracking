@@ -1,6 +1,9 @@
 export const DEFAULT_CAMPUS_MODEL_URL =
   import.meta.env.VITE_CAMPUS_MODEL_URL ?? '/models/ucer-campus-tiles/tileset.json';
 
+export const CESIUM_ION_ASSET_ID = import.meta.env.VITE_CESIUM_ION_ASSET_ID ?? '';
+export const CESIUM_ION_ACCESS_TOKEN = import.meta.env.VITE_CESIUM_ION_ACCESS_TOKEN ?? '';
+
 export const CAMPUS_MODEL_TRANSFORM = {
   scale: Number(import.meta.env.VITE_CAMPUS_MODEL_SCALE ?? 1),
   position: {

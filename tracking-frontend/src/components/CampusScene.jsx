@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TilesRenderer } from '3d-tiles-renderer/three';
-import { GLTFExtensionsPlugin } from '3d-tiles-renderer/three/plugins';
+import { CesiumIonAuthPlugin, GLTFExtensionsPlugin } from '3d-tiles-renderer/three/plugins';
 import {
   CAMPUS_ELEVATION,
   CAMPUS_FLOOR_HEIGHT_METERS,
@@ -16,7 +16,12 @@ import {
   locationToScenePoint,
 } from '../lib/campus.js';
 import { CAMPUS_ZONES } from '../lib/locationCategories.js';
-import { CAMPUS_MODEL_TRANSFORM, getModelFormat } from '../lib/modelConfig.js';
+import {
+  CAMPUS_MODEL_TRANSFORM,
+  CESIUM_ION_ACCESS_TOKEN,
+  CESIUM_ION_ASSET_ID,
+  getModelFormat,
+} from '../lib/modelConfig.js';
 import { QUALITY_PRESETS, useQuality } from '../lib/quality.js';
 import { createAssets } from '../scene/assets.js';
 import { PALETTES, applyEnvironment, applyMarkerPalette } from '../scene/environment.js';
@@ -1155,7 +1160,15 @@ export default function CampusScene({
 
         removeCurrentModel();
         removeCurrentTiles();
-        const tiles = new TilesRenderer(campusModelUrl);
+        const useCesiumIon = Boolean(CESIUM_ION_ASSET_ID && CESIUM_ION_ACCESS_TOKEN);
+        const tiles = new TilesRenderer(useCesiumIon ? null : campusModelUrl);
+        if (useCesiumIon) {
+          tiles.registerPlugin(new CesiumIonAuthPlugin({
+            apiToken: CESIUM_ION_ACCESS_TOKEN,
+            assetId: CESIUM_ION_ASSET_ID,
+            autoRefreshToken: true,
+          }));
+        }
         const dracoLoader = new DRACOLoader();
         dracoLoader.setDecoderPath('/draco/');
         tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader }));
