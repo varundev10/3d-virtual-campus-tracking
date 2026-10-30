@@ -4,16 +4,22 @@ import com.campus.tracking.dto.LocationUpdateRequest;
 import com.campus.tracking.model.LocationPing;
 import com.campus.tracking.repository.LocationPingRepository;
 import com.campus.tracking.security.StompAuthChannelInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.Locale;
 
 @Service
 public class LocationService {
+
+    private static final Logger log = LoggerFactory.getLogger(LocationService.class);
 
     @Autowired
     private LocationPingRepository locationPingRepository;
@@ -23,6 +29,15 @@ public class LocationService {
 
     @Autowired
     private GeofenceService geofenceService;
+
+    @Autowired
+    private AttendanceEngine attendanceEngine;
+
+    @Autowired
+    private MovementAnomalyService movementAnomalyService;
+
+    @Autowired
+    private Clock clock;
 
     public LocationPing recordLocation(LocationUpdateRequest request) {
         LocationPing.SourceType source = parseSource(request.getSource());
@@ -55,10 +70,20 @@ public class LocationService {
         ping.setWifiPointId(request.getWifiPointId());
         ping.setRfidTagId(request.getRfidTagId());
         ping.setSource(source);
+        ping.setTimestamp(LocalDateTime.now(clock));
 
         LocationPing saved = locationPingRepository.save(ping);
 
         messagingTemplate.convertAndSend(StompAuthChannelInterceptor.LOCATIONS_TOPIC, saved);
+
+        // Attendance and anomaly checks are secondary to storing the position: a failure here must never
+        // cost the user their location update.
+        try {
+            attendanceEngine.onPing(saved);
+            movementAnomalyService.inspect(saved);
+        } catch (RuntimeException e) {
+            log.warn("Post-ping processing failed for ping {}", saved.getId(), e);
+        }
 
         return saved;
     }

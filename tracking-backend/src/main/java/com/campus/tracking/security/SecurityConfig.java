@@ -44,10 +44,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
+                        // Names only, so the registration form can offer a department choice.
+                        .requestMatchers(HttpMethod.GET, "/api/auth/departments").permitAll()
                         // SockJS handshake; STOMP frames are authenticated by StompAuthChannelInterceptor.
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/actuator/health", "/error").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/faculty/**").hasAnyRole("FACULTY", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/alerts/*/acknowledge").hasAnyRole("FACULTY", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/users/**").hasRole("ADMIN")

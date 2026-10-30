@@ -34,6 +34,12 @@ public class User {
 
     private LocalDateTime createdAt;
 
+    // Students belong to the department whose timetable they follow; faculty to the one they teach in.
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "department_id")
+    private Department department;
+
     @PrePersist
     void onCreate() {
         if (createdAt == null) createdAt = LocalDateTime.now();
@@ -46,6 +52,23 @@ public class User {
 
     public boolean getHasPassword() {
         return passwordHash != null && !passwordHash.isBlank();
+    }
+
+    public Long getDepartmentId() {
+        return department == null ? null : department.getId();
+    }
+
+    public String getDepartmentName() {
+        return department == null ? null : department.getName();
+    }
+
+    public String getDepartmentCode() {
+        return department == null ? null : department.getCode();
+    }
+
+    /** True when this user is recorded as the head of their own department. */
+    public boolean getHeadOfDepartment() {
+        return department != null && id != null && id.equals(department.getHeadUserId());
     }
 
     public enum Role {

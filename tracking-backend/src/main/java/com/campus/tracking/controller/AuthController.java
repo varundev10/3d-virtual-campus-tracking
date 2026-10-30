@@ -25,6 +25,16 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userAccountService.register(request));
     }
 
+    public record DepartmentOption(Long id, String code, String name) {
+    }
+
+    /** Public: lets the registration form offer a department choice. */
+    @GetMapping("/departments")
+    public ResponseEntity<java.util.List<DepartmentOption>> departments() {
+        return ResponseEntity.ok(userAccountService.listDepartments().stream()
+                .map(d -> new DepartmentOption(d.getId(), d.getCode(), d.getName())).toList());
+    }
+
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(userAccountService.login(request));
