@@ -36,6 +36,9 @@ const PATHS = {
   sidebar: 'M3 4h18v16H3zM9 4v16M15 10l-2 2 2 2',
   panel: 'M3 4h18v16H3zM15 4v16',
   target: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  chat: 'M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+  send: 'M22 2 11 13M22 2l-7 20-4-9-9-4z',
+  spark: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.7 1.8L21.5 18.5l-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z',
 };
 
 export default function Icon({ name, size = 18, className = '', label }) {

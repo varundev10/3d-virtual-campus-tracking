@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import AdminLayout from '../../layouts/AdminLayout.jsx';
+import AlertsPanel from '../../components/AlertsPanel.jsx';
+import Icon from '../../components/ui/Icon.jsx';
 import { BarList, ChartCard, ColumnChart } from '../../components/ui/Charts.jsx';
 import { EmptyState, ErrorState, Spinner } from '../../components/ui/States.jsx';
+import { useToast } from '../../components/ui/Toast.jsx';
 import { api } from '../../lib/api.js';
 import { useAsync } from '../../lib/useAsync.js';
-import { daysAgo, formatDateTime, isoDate, titleCase } from '../../lib/format.js';
+import { daysAgo, formatDateTime, formatPercent, isoDate, titleCase } from '../../lib/format.js';
 
 const PRESETS = [7, 14, 30, 90];
 const STATUSES = ['PRESENT', 'ABSENT', 'BUNKED'];
@@ -74,40 +77,105 @@ function AttendanceTable({ range, nameFor, users }) {
   );
 }
 
-function AlertsTable({ range, nameFor }) {
-  const [page, setPage] = useState(0);
-  const alerts = useAsync(() => api.getAlerts({ ...range, page, size: 10 }), [range.from, range.to, page]);
+function AttendanceReport({ range }) {
+  const [departmentId, setDepartmentId] = useState('');
+  const departments = useAsync(() => api.getAdminDepartments(), []);
+  const report = useAsync(() => api.getAttendanceReport({ ...range, departmentId }), [range.from, range.to, departmentId]);
+  const data = report.data;
+
   return (
-    <section className="card" aria-labelledby="alert-report-title">
-      <header className="card-header"><h2 id="alert-report-title">Alerts</h2></header>
-      {alerts.loading && !alerts.data && <Spinner label="Loading alerts" />}
-      {alerts.error && <ErrorState message={alerts.error.message} onRetry={alerts.reload} />}
-      {alerts.data && alerts.data.content.length === 0 && <EmptyState icon="check" title="No alerts in this range" />}
-      {alerts.data?.content.length > 0 && (
+    <section className="card" aria-labelledby="att-dept-title">
+      <header className="card-header">
+        <div>
+          <h2 id="att-dept-title">Attendance by department</h2>
+          <p>Timetabled classes only. Absent and bunked both count against a student.</p>
+        </div>
+        <select className="input" aria-label="Filter by department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+          <option value="">All departments</option>
+          {(departments.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+      </header>
+      {report.loading && !data && <Spinner label="Building attendance report" />}
+      {report.error && <ErrorState message={report.error.message} onRetry={report.reload} />}
+      {data && data.departments.length === 0 && <EmptyState icon="building" title="No departments yet">Create departments in Academics to see attendance by department.</EmptyState>}
+      {data && data.departments.length > 0 && (
         <>
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th scope="col">Type</th><th scope="col">User</th><th scope="col">Message</th><th scope="col">Time</th></tr></thead>
+              <thead>
+                <tr>
+                  <th scope="col">Department</th><th scope="col" className="num">Students</th><th scope="col" className="num">Classes</th>
+                  <th scope="col" className="num">Present</th><th scope="col" className="num">Absent</th><th scope="col" className="num">Bunked</th>
+                  <th scope="col" className="num">Attendance</th>
+                </tr>
+              </thead>
               <tbody>
-                {alerts.data.content.map((a) => (
-                  <tr key={a.id}>
-                    <td><span className="badge badge-warning">{titleCase(a.type)}</span></td>
-                    <td>{nameFor(a.userId)}</td>
-                    <td>{a.message}</td>
-                    <td className="small">{formatDateTime(a.createdAt)}</td>
+                {data.departments.map((d) => (
+                  <tr key={d.id}>
+                    <td><strong>{d.name}</strong><br /><small className="muted mono">{d.code}</small></td>
+                    <td className="num">{d.students}</td><td className="num">{d.total}</td>
+                    <td className="num">{d.present}</td><td className="num">{d.absent}</td><td className="num">{d.bunked}</td>
+                    <td className="num">{d.total > 0 ? formatPercent(d.percent) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <Pager data={alerts.data} page={page} setPage={setPage} noun="alerts" />
+          <h3 className="section-title">Below {formatPercent(data.requiredPercent)} ({data.belowRequired.length})</h3>
+          {data.belowRequired.length === 0 ? (
+            <p className="muted">No student is below the required attendance in this range.</p>
+          ) : (
+            <ul className="timeline compact">
+              {data.belowRequired.map((s) => (
+                <li key={s.userId}>
+                  <strong>{s.name} · {formatPercent(s.percent)}</strong>
+                  <span>{s.departmentName ?? 'No department'} · {s.total} classes · {s.bunked} bunked</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </section>
   );
 }
 
+function FootfallCard() {
+  const [today] = useState(() => isoDate(Date.now()));
+  const [date, setDate] = useState(today);
+  const footfall = useAsync(() => api.getFootfall(date), [date]);
+  const rows = (footfall.data?.hours ?? []).map((h) => ({
+    label: `${String(h.hour).padStart(2, '0')}:00`,
+    short: String(h.hour).padStart(2, '0'),
+    value: h.people,
+  }));
+
+  const hasData = rows.some((r) => r.value > 0);
+  const peak = footfall.data?.peakHour;
+
+  return (
+    <section className="card chart-card" aria-labelledby="footfall-title">
+      <header className="card-header">
+        <div>
+          <h2 id="footfall-title">Footfall by hour</h2>
+          <p>{peak != null ? `Busiest at ${String(peak).padStart(2, '0')}:00 with ${footfall.data.peakPeople} people.` : 'Distinct people seen on campus in each hour.'}</p>
+        </div>
+        <label className="inline-label">Day
+          <input className="input" type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} />
+        </label>
+      </header>
+      {footfall.loading && !footfall.data && <Spinner label="Loading footfall" />}
+      {footfall.error && <ErrorState message={footfall.error.message} onRetry={footfall.reload} />}
+      {footfall.data && (hasData
+        ? <ColumnChart rows={rows} valueLabel="people" />
+        : <p className="chart-empty">Nobody shared a position on campus on this day.</p>)}
+    </section>
+  );
+}
+
 export default function AdminReports() {
+  const toast = useToast();
+  const [exporting, setExporting] = useState(false);
   const [range, setRange] = useState({ from: daysAgo(13), to: isoDate(Date.now()) });
   const [draft, setDraft] = useState(range);
   const [rangeError, setRangeError] = useState(null);
@@ -135,8 +203,28 @@ export default function AdminReports() {
     };
   });
 
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      await api.exportAttendance(range);
+      toast.success('Attendance exported');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
-    <AdminLayout title="Reports">
+    <AdminLayout
+      title="Reports"
+      actions={(
+        <button type="button" className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={exporting}
+          title="Download the attendance records in the selected range as a spreadsheet">
+          <Icon name="table" size={16} /> {exporting ? 'Exporting…' : 'Export attendance'}
+        </button>
+      )}
+    >
       <div className="page-stack">
         <section className="card">
           <form className="toolbar" onSubmit={(e) => { e.preventDefault(); applyRange(draft); }} noValidate>
@@ -186,8 +274,10 @@ export default function AdminReports() {
           </>
         )}
 
+        <AttendanceReport range={range} />
+        <FootfallCard />
         <AttendanceTable range={range} nameFor={nameFor} users={users.data ?? []} />
-        <AlertsTable range={range} nameFor={nameFor} />
+        <AlertsPanel title="Alerts" subtitle="Everything raised across the campus." canAcknowledge pageSize={10} />
       </div>
     </AdminLayout>
   );

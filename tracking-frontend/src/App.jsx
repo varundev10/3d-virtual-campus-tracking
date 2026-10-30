@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { RouterProvider, Redirect, Link, useRouter } from './lib/router.jsx';
-import { AuthProvider, homePathFor, isAdmin, useAuth } from './lib/auth.jsx';
+import { AuthProvider, homePathFor, isAdmin, isFaculty, useAuth } from './lib/auth.jsx';
 import { ToastProvider } from './components/ui/Toast.jsx';
 import { ErrorState, Spinner } from './components/ui/States.jsx';
 import Fx from './components/fx/Fx.jsx';
@@ -13,6 +13,10 @@ import UserLayout from './layouts/UserLayout.jsx';
 import UserDashboard from './pages/user/UserDashboard.jsx';
 import CampusExplorer from './pages/user/CampusExplorer.jsx';
 import ProfilePage from './pages/user/ProfilePage.jsx';
+import AttendancePage from './pages/user/AttendancePage.jsx';
+import TeachingConsole from './pages/faculty/TeachingConsole.jsx';
+import DepartmentPage from './pages/faculty/DepartmentPage.jsx';
+import AdminAcademics from './pages/admin/AdminAcademics.jsx';
 import AdminOverview from './pages/admin/AdminOverview.jsx';
 import AdminUsers from './pages/admin/AdminUsers.jsx';
 import AdminLocations from './pages/admin/AdminLocations.jsx';
@@ -23,12 +27,20 @@ import AdminSettings from './pages/admin/AdminSettings.jsx';
 const USER_ROUTES = {
   '/app': UserDashboard,
   '/app/explore': CampusExplorer,
+  '/app/attendance': AttendancePage,
   '/app/profile': ProfilePage,
+};
+
+// Faculty tools. The server enforces the role on every call; this only decides which pages exist for whom.
+const FACULTY_ROUTES = {
+  '/app/teaching': TeachingConsole,
+  '/app/department': DepartmentPage,
 };
 
 const ADMIN_ROUTES = {
   '/admin': AdminOverview,
   '/admin/users': AdminUsers,
+  '/admin/academics': AdminAcademics,
   '/admin/locations': AdminLocations,
   '/admin/tracking': AdminTracking,
   '/admin/reports': AdminReports,
@@ -111,7 +123,7 @@ function Routes() {
   if (isUserArea) {
     // Administrators have their own console with the same 3D scene and full tracking data.
     if (isAdmin(user)) return <Redirect to="/admin" />;
-    const Page = USER_ROUTES[cleanPath];
+    const Page = USER_ROUTES[cleanPath] ?? (isFaculty(user) ? FACULTY_ROUTES[cleanPath] : undefined);
     return Page ? <UserLayout><Page /></UserLayout> : <NotFound />;
   }
 

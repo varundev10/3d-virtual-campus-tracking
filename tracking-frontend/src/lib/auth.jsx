@@ -27,6 +27,10 @@ export function isAdmin(user) {
   return user?.role === 'ADMIN';
 }
 
+export function isFaculty(user) {
+  return user?.role === 'FACULTY';
+}
+
 export function homePathFor(user) {
   return isAdmin(user) ? '/admin' : '/app';
 }

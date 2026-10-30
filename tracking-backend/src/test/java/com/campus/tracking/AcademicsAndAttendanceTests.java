@@ -634,4 +634,91 @@ class AcademicsAndAttendanceTests {
             assertThat(a.getMessage()).contains("Asha");
         });
     }
+
+    // ---- campus assistant ----
+
+    private ResultActions ask(Person p, String question) throws Exception {
+        return send(p, post("/api/assistant"), "{\"message\":\"" + question + "\"}");
+    }
+
+    @Test
+    void assistantTellsAStudentTheirAttendanceAndHowManyClassesTheyCanMiss() throws Exception {
+        Fixture f = fixture();
+        clock.set(MONDAY.atTime(10, 5));
+        ping(f.s1(), ROOM_LAT, ROOM_LNG);
+        ping(f.s2(), HALL_LAT, HALL_LNG);
+        clock.set(MONDAY.atTime(11, 6));
+        engine.finalizeEnded(clock.time());
+
+        ask(f.s1(), "What is my attendance?").andExpect(status().isOk())
+                .andExpect(jsonPath("$.reply").value(containsString("100%")))
+                .andExpect(jsonPath("$.suggestions.length()").value(greaterThan(0)));
+        // 1 present of 1 class at a 75% requirement: 1/0.75 - 1 = 0.33, so no spare class.
+        ask(f.s1(), "How many classes can I miss?").andExpect(jsonPath("$.reply").value(containsString("edge")));
+        ask(f.s2(), "can i skip next class").andExpect(jsonPath("$.reply").value(allOf(containsString("below the required"), containsString("next 3 classes"))));
+        ask(f.s2(), "my attendance percent").andExpect(jsonPath("$.reply").value(containsString("0%")));
+    }
+
+    @Test
+    void assistantAnswersAboutTodayAndTheNextClass() throws Exception {
+        Fixture f = fixture();
+        clock.set(MONDAY.atTime(9, 0));
+        ask(f.s1(), "what classes do i have today").andExpect(jsonPath("$.reply").value(allOf(containsString("Data Structures"), containsString("upcoming"))))
+                .andExpect(jsonPath("$.link").value("/app/attendance"));
+        ask(f.s1(), "when is my next class").andExpect(jsonPath("$.reply").value(allOf(containsString("today at 10:00"), containsString("Prof Rao"))));
+        clock.set(MONDAY.atTime(12, 0));
+        ask(f.s1(), "next class").andExpect(jsonPath("$.reply").value(containsString("on Monday")));
+    }
+
+    @Test
+    void assistantListsWhoIsMissingForFacultyAndLowAttendance() throws Exception {
+        Fixture f = fixture();
+        clock.set(MONDAY.atTime(10, 5));
+        ping(f.s1(), ROOM_LAT, ROOM_LNG);
+        ping(f.s2(), HALL_LAT, HALL_LNG);
+        clock.set(MONDAY.atTime(11, 6));
+        engine.finalizeEnded(clock.time());
+
+        ask(f.faculty(), "who is absent in my class?").andExpect(status().isOk())
+                .andExpect(jsonPath("$.reply").value(allOf(containsString("1 present"), containsString("Bunked: Bilal"), containsString("Absent: Chitra"))));
+        ask(f.faculty(), "students with low attendance").andExpect(jsonPath("$.reply")
+                .value(allOf(containsString("2 students are below 75%"), containsString("Bilal"), not(containsString("Asha")))));
+    }
+
+    @Test
+    void assistantReportsOpenAlertsWithinTheCallersScope() throws Exception {
+        Fixture f = fixture();
+        clock.set(MONDAY.atTime(13, 0, 0));
+        ping(f.s1(), ROOM_LAT, ROOM_LNG);
+        clock.set(MONDAY.atTime(13, 0, 2));
+        ping(f.s1(), FAR_LAT, FAR_LNG);
+
+        ask(f.s1(), "any alerts about me?").andExpect(jsonPath("$.reply").value(containsString("Asha moved")));
+        ask(f.s2(), "any alerts?").andExpect(jsonPath("$.reply").value(not(containsString("Asha"))));
+        ask(f.faculty(), "any open alerts?").andExpect(jsonPath("$.reply").value(containsString("Asha moved")));
+    }
+
+    @Test
+    void assistantFindsPlacesAndKeepsOccupancyAdminOnly() throws Exception {
+        Fixture f = fixture();
+        Person admin = admin();
+        ask(f.s1(), "where is the library?").andExpect(jsonPath("$.reply").value(containsString("Central Library")))
+                .andExpect(jsonPath("$.link").value("/app/explore?location=LIB"));
+        ask(admin, "where is the library").andExpect(jsonPath("$.link").value("/admin/locations"));
+        ask(f.s1(), "how many people are on campus?").andExpect(jsonPath("$.reply").value(containsString("administrators only")));
+        clock.set(MONDAY.atTime(10, 5));
+        ping(f.s1(), ROOM_LAT, ROOM_LNG);
+        ask(admin, "how many people are on campus now").andExpect(jsonPath("$.reply").value(containsString("shared a position")));
+    }
+
+    @Test
+    void assistantHandlesGreetingsUnknownQuestionsAndBadInput() throws Exception {
+        Fixture f = fixture();
+        ask(f.s1(), "hello").andExpect(jsonPath("$.reply").value(containsString("campus assistant")));
+        ask(f.s1(), "tell me a joke about rockets").andExpect(jsonPath("$.reply").value(containsString("did not catch that")))
+                .andExpect(jsonPath("$.suggestions.length()").value(4));
+        ask(f.s1(), "").andExpect(status().isBadRequest());
+        ask(f.s1(), "x".repeat(301)).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/assistant").contentType(MediaType.APPLICATION_JSON).content("{\"message\":\"hi\"}")).andExpect(status().isUnauthorized());
+    }
 }
