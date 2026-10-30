@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { prefersReducedMotion } from '../../lib/quality.js';
-import Cursor from './Cursor.jsx';
 import IntroLoader from './IntroLoader.jsx';
 import PageTransition from './PageTransition.jsx';
 import RaveMode from './RaveMode.jsx';
@@ -46,7 +45,6 @@ export default function Fx() {
   return (
     <>
       <ScrollProgress />
-      <Cursor />
       <PageTransition />
       <RaveMode />
       <IntroLoader />

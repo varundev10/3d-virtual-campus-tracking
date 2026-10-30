@@ -178,79 +178,6 @@ html.fx-on [data-reveal].is-in {
   to { transform: translateX(-50%); }
 }
 
-/* ---- Custom cursor (Cursor.jsx): desktop with a fine pointer only ---- */
-.cursor {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-cursor);
-  pointer-events: none;
-}
-
-html:not(.has-cursor) .cursor { display: none; }
-
-html.has-cursor,
-html.has-cursor * { cursor: none !important; }
-
-/* Text inputs keep the native I-beam. */
-html.has-cursor :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]), textarea, select, [contenteditable="true"]) { cursor: auto !important; }
-
-.cursor-dot,
-.cursor-ring {
-  position: fixed;
-  left: 0;
-  top: 0;
-  pointer-events: none;
-  will-change: transform;
-}
-
-.cursor-dot {
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 50%;
-  background: var(--lime);
-  transition: opacity var(--dur-fast) ease;
-}
-
-.cursor-ring {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin: -17px 0 0 -17px;
-  border: 1.5px solid var(--white);
-  border-radius: 50%;
-  mix-blend-mode: difference;
-  transition:
-    width var(--dur-base) var(--ease),
-    height var(--dur-base) var(--ease),
-    margin var(--dur-base) var(--ease),
-    background-color var(--dur-base) ease,
-    opacity var(--dur-fast) ease;
-}
-
-.cursor-ring[data-state="active"] {
-  width: 86px;
-  height: 86px;
-  margin: -43px 0 0 -43px;
-  background: var(--white);
-}
-
-.cursor-ring[data-state="hidden"],
-.cursor-dot[data-state="hidden"] { opacity: 0; }
-
-.cursor-label {
-  color: #000;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  opacity: 0;
-  transition: opacity var(--dur-fast) ease;
-}
-
-.cursor-ring[data-state="active"] .cursor-label { opacity: 1; }
-
 /* ---- Page wipe (PageTransition.jsx): a diagonal pink sweep between routes ---- */
 .page-wipe {
   position: fixed;
@@ -602,7 +529,6 @@ html.fx-on .wordmark.is-in .wordmark-fill,
   [data-skew],
   [data-reveal] { transform: none !important; }
 
-  .cursor,
   .page-wipe,
   .loader,
   .rave-wash { display: none !important; }
