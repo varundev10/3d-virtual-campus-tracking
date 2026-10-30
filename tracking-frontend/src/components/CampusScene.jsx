@@ -1055,6 +1055,7 @@ export default function CampusScene({
 
     let cancelled = false;
     const modelFormat = getModelFormat(campusModelUrl);
+    const useCesiumIon = Boolean(CESIUM_ION_ASSET_ID && CESIUM_ION_ACCESS_TOKEN);
     const missingHint = modelFormat === 'tileset'
       ? 'Place the Metashape 3D Tiles export at public/models/ucer-campus-tiles/tileset.json.'
       : 'Place the Metashape export at public/models/ucer-campus.glb.';
@@ -1160,7 +1161,6 @@ export default function CampusScene({
 
         removeCurrentModel();
         removeCurrentTiles();
-        const useCesiumIon = Boolean(CESIUM_ION_ASSET_ID && CESIUM_ION_ACCESS_TOKEN);
         const tiles = new TilesRenderer(useCesiumIon ? null : campusModelUrl);
         if (useCesiumIon) {
           tiles.registerPlugin(new CesiumIonAuthPlugin({
@@ -1214,7 +1214,7 @@ export default function CampusScene({
       showFallback('Unsupported model format. Use a 3D Tiles tileset, GLB, GLTF, or OBJ.');
     };
 
-    if (campusModelUrl.startsWith('blob:')) {
+    if (campusModelUrl.startsWith('blob:') || useCesiumIon) {
       loadModel();
     } else {
       fetch(campusModelUrl, { method: 'HEAD' })
