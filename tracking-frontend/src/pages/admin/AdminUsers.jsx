@@ -24,9 +24,9 @@ function StatusBadge({ active }) {
   return <span className={`badge ${active ? 'badge-good' : 'badge-muted'}`}>{active ? 'Active' : 'Deactivated'}</span>;
 }
 
-function AddUserModal({ open, onClose, onCreated }) {
+function AddUserModal({ open, onClose, onCreated, departments }) {
   const toast = useToast();
-  const empty = { name: '', email: '', role: 'STUDENT', password: '' };
+  const empty = { name: '', email: '', role: 'STUDENT', password: '', departmentId: '' };
   const [values, setValues] = useState(empty);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -55,6 +55,7 @@ function AddUserModal({ open, onClose, onCreated }) {
         email: values.email.trim(),
         role: values.role,
         ...(values.password ? { password: values.password } : {}),
+        ...(values.departmentId ? { departmentId: Number(values.departmentId) } : {}),
       });
       toast.success(`Created ${created.name}`);
       onCreated(created);
@@ -82,6 +83,11 @@ function AddUserModal({ open, onClose, onCreated }) {
         <TextField id="nu-email" type="email" label="Email" value={values.email} onChange={set('email')} error={errors.email} />
         <SelectField id="nu-role" label="Role" value={values.role} onChange={set('role')} error={errors.role}>
           {ROLES.map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}
+        </SelectField>
+        <SelectField id="nu-dept" label="Department" value={values.departmentId} onChange={set('departmentId')} error={errors.departmentId}
+          hint="Students follow their department's timetable; faculty see its students.">
+          <option value="">No department</option>
+          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </SelectField>
         <TextField id="nu-password" type="password" label="Initial password (optional)" autoComplete="new-password"
           hint="Without a password the user cannot sign in until you set one." value={values.password} onChange={set('password')} error={errors.password} />
@@ -183,16 +189,20 @@ function AttendanceSection({ user, classrooms }) {
   );
 }
 
-function UserDetailModal({ user, onClose, onUpdated, classrooms }) {
+function UserDetailModal({ user, onClose, onUpdated, classrooms, departments }) {
   const toast = useToast();
   const { user: me } = useAuth();
   const [role, setRole] = useState(user?.role ?? 'STUDENT');
+  const [departmentId, setDepartmentId] = useState(user?.departmentId ?? '');
   const [confirm, setConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
   const pings = useAsync(() => (user ? api.getRecentLocations(user.id) : Promise.resolve([])), [user?.id]);
 
   useEffect(() => {
-    if (user) setRole(user.role);
+    if (user) {
+      setRole(user.role);
+      setDepartmentId(user.departmentId ?? '');
+    }
   }, [user]);
 
   if (!user) return <Modal open={false} title="" onClose={onClose} />;
@@ -225,6 +235,10 @@ function UserDetailModal({ user, onClose, onUpdated, classrooms }) {
             <div><dt>Status</dt><dd><StatusBadge active={user.active} /></dd></div>
             <div><dt>Created</dt><dd>{formatDate(user.createdAt)}</dd></div>
             <div><dt>Can sign in</dt><dd>{user.hasPassword ? 'Yes' : 'No password set'}</dd></div>
+            <div>
+              <dt>Department</dt>
+              <dd>{user.departmentName ?? <span className="muted">None</span>}{user.headOfDepartment && <span className="badge badge-good">Head</span>}</dd>
+            </div>
           </dl>
         </section>
 
@@ -273,6 +287,20 @@ function UserDetailModal({ user, onClose, onUpdated, classrooms }) {
               </button>
             )}
           </div>
+          <div className="inline-form">
+            <SelectField id="ud-dept" label="Department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} disabled={saving}>
+              <option value="">No department</option>
+              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </SelectField>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={saving || String(departmentId) === String(user.departmentId ?? '')}
+              onClick={() => apply(departmentId ? { departmentId: Number(departmentId) } : { clearDepartment: true }, `${user.name} department updated`)}
+            >
+              Save department
+            </button>
+          </div>
           <SetPasswordForm user={user} />
         </section>
 
@@ -318,10 +346,13 @@ export default function AdminUsers() {
   const q = useDebouncedValue(search);
   const users = useAsync(() => api.getUsers({ q, role, active: status }), [q, role, status]);
   const locations = useAsync(() => api.getCampusLocations(), []);
+  const departments = useAsync(() => api.getAdminDepartments(), []);
+  const rooms = useAsync(() => api.getClassrooms(), []);
 
+  // Real classrooms first, then campus locations and the codes the original console used.
   const classrooms = useMemo(
-    () => [...new Set([...(locations.data ?? []).map((l) => l.code), ...LEGACY_CLASSROOMS])],
-    [locations.data],
+    () => [...new Set([...(rooms.data ?? []).map((r) => r.code), ...(locations.data ?? []).map((l) => l.code), ...LEGACY_CLASSROOMS])],
+    [rooms.data, locations.data],
   );
   const selected = users.data?.find((u) => u.id === selectedId) ?? null;
   const filtered = Boolean(q || role || status);
@@ -363,6 +394,7 @@ export default function AdminUsers() {
                 <tr>
                   <th scope="col">User</th>
                   <th scope="col">Role</th>
+                  <th scope="col">Department</th>
                   <th scope="col">Status</th>
                   <th scope="col">Sign-in</th>
                   <th scope="col">Created</th>
@@ -374,6 +406,7 @@ export default function AdminUsers() {
                   <tr key={u.id}>
                     <td><strong>{u.name}</strong><br /><small className="muted">{u.email}</small></td>
                     <td><RoleBadge role={u.role} /></td>
+                    <td>{u.departmentName ?? <span className="muted">None</span>}</td>
                     <td><StatusBadge active={u.active} /></td>
                     <td>{u.hasPassword ? 'Password set' : <span className="muted">No password</span>}</td>
                     <td>{formatDate(u.createdAt)}</td>
@@ -388,6 +421,7 @@ export default function AdminUsers() {
 
       <AddUserModal
         open={adding}
+        departments={departments.data ?? []}
         onClose={() => setAdding(false)}
         onCreated={() => {
           setAdding(false);
@@ -397,6 +431,7 @@ export default function AdminUsers() {
       <UserDetailModal
         user={selected}
         classrooms={classrooms}
+        departments={departments.data ?? []}
         onClose={() => setSelectedId(null)}
         onUpdated={(updated) => users.setData((rows) => rows.map((r) => (r.id === updated.id ? updated : r)))}
       />

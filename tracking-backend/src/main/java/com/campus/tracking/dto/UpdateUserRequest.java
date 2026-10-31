@@ -13,4 +13,10 @@ public class UpdateUserRequest {
     private User.Role role;
 
     private Boolean active;
+
+    // Moves the user to this department; null leaves it unchanged.
+    private Long departmentId;
+
+    // Removes the user from their department (departmentId is then ignored).
+    private Boolean clearDepartment;
 }

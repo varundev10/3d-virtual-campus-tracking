@@ -24,4 +24,6 @@ public class CreateUserRequest {
 
     @Size(min = 8, max = 72, message = "Password must be 8-72 characters")
     private String password;
+
+    private Long departmentId;
 }

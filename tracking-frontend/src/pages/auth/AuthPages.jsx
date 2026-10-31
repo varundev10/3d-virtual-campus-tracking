@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TextField } from '../../components/ui/Field.jsx';
+import { SelectField, TextField } from '../../components/ui/Field.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import ThemeToggle from '../../components/ui/ThemeToggle.jsx';
 import LazyCampusScene from '../../components/LazyCampusScene.jsx';
@@ -8,8 +8,10 @@ import Motif from '../../components/fx/Motif.jsx';
 import Scramble from '../../components/fx/Scramble.jsx';
 import SplitText from '../../components/fx/SplitText.jsx';
 import TextBadge from '../../components/fx/TextBadge.jsx';
+import { api } from '../../lib/api.js';
 import { homePathFor, isAdmin, useAuth } from '../../lib/auth.jsx';
 import { Link, useRouter } from '../../lib/router.jsx';
+import { useAsync } from '../../lib/useAsync.js';
 import { UCER_CENTER } from '../../lib/campus.js';
 import { useMediaQuery } from '../../lib/useMediaQuery.js';
 import { useQuality } from '../../lib/quality.js';
@@ -146,11 +148,13 @@ export function LoginPage() {
 export function RegisterPage() {
   const { register } = useAuth();
   const { navigate } = useRouter();
-  const [values, setValues] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [values, setValues] = useState({ name: '', email: '', password: '', confirm: '', departmentId: '' });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [busy, setBusy] = useState(false);
   const set = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.value }));
+  // Public list; if it cannot load, registration still works and an admin assigns the department later.
+  const departments = useAsync(() => api.getDepartments().catch(() => []), []);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -165,7 +169,12 @@ export function RegisterPage() {
 
     setBusy(true);
     try {
-      const user = await register({ name: values.name.trim(), email: values.email.trim(), password: values.password });
+      const user = await register({
+        name: values.name.trim(),
+        email: values.email.trim(),
+        password: values.password,
+        ...(values.departmentId ? { departmentId: Number(values.departmentId) } : {}),
+      });
       navigate(homePathFor(user), { replace: true });
     } catch (error) {
       setErrors(error.fieldErrors ?? {});
@@ -185,6 +194,13 @@ export function RegisterPage() {
           value={values.name} onChange={set('name')} error={errors.name} />
         <TextField id="reg-email" type="email" label="Email" autoComplete="email"
           value={values.email} onChange={set('email')} error={errors.email} />
+        {(departments.data ?? []).length > 0 && (
+          <SelectField id="reg-dept" label="Department" value={values.departmentId} onChange={set('departmentId')} error={errors.departmentId}
+            hint="Sets which timetable your attendance is tracked against.">
+            <option value="">Choose later</option>
+            {departments.data.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </SelectField>
+        )}
         <TextField id="reg-password" type="password" label="Password" autoComplete="new-password" hint="8-72 characters"
           value={values.password} onChange={set('password')} error={errors.password} />
         <TextField id="reg-confirm" type="password" label="Confirm password" autoComplete="new-password"

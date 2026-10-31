@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Icon from '../components/ui/Icon.jsx';
+import Assistant from '../components/Assistant.jsx';
 import CommandPalette from '../components/CommandPalette.jsx';
 import ThemeToggle from '../components/ui/ThemeToggle.jsx';
 import { Link, useRouter } from '../lib/router.jsx';
@@ -9,6 +10,7 @@ import { useDocumentTitle } from '../lib/useDocumentTitle.js';
 export const ADMIN_NAV = [
   { to: '/admin', label: 'Overview', icon: 'home', exact: true },
   { to: '/admin/users', label: 'Users', icon: 'users' },
+  { to: '/admin/academics', label: 'Academics', icon: 'clock' },
   { to: '/admin/locations', label: 'Campus Locations', icon: 'building' },
   { to: '/admin/tracking', label: 'Tracking / Activity', icon: 'activity' },
   { to: '/admin/reports', label: 'Reports', icon: 'chart' },
@@ -126,6 +128,7 @@ export default function AdminLayout({ title, actions, children }) {
         </header>
         <main id="main" className="admin-main" tabIndex={-1}>{children}</main>
       </div>
+      <Assistant />
     </div>
   );
 }

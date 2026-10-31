@@ -1,7 +1,9 @@
 package com.campus.tracking.service;
 
 import com.campus.tracking.dto.*;
+import com.campus.tracking.model.Department;
 import com.campus.tracking.model.User;
+import com.campus.tracking.repository.DepartmentRepository;
 import com.campus.tracking.repository.UserRepository;
 import com.campus.tracking.security.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,9 @@ public class UserAccountService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private DepartmentRepository departmentRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -51,8 +56,15 @@ public class UserAccountService {
         user.setEmail(email);
         user.setRole(User.Role.STUDENT);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setDepartment(requireDepartment(request.getDepartmentId()));
         user = userRepository.save(user);
         return toAuthResponse(user);
+    }
+
+    private Department requireDepartment(Long departmentId) {
+        if (departmentId == null) return null;
+        return departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown department"));
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -107,6 +119,7 @@ public class UserAccountService {
         user.setName(request.getName().trim());
         user.setEmail(email);
         user.setRole(request.getRole());
+        user.setDepartment(requireDepartment(request.getDepartmentId()));
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
@@ -132,7 +145,26 @@ public class UserAccountService {
         if (request.getName() != null) user.setName(request.getName().trim());
         if (request.getRole() != null) user.setRole(request.getRole());
         if (request.getActive() != null) user.setActive(request.getActive());
+
+        Department previous = user.getDepartment();
+        if (Boolean.TRUE.equals(request.getClearDepartment())) {
+            user.setDepartment(null);
+        } else if (request.getDepartmentId() != null) {
+            user.setDepartment(requireDepartment(request.getDepartmentId()));
+        }
+        // A department head must be faculty and stay in the department: otherwise the headship is dropped.
+        if (previous != null && userId.equals(previous.getHeadUserId())
+                && (user.getRole() != User.Role.FACULTY || user.getDepartment() == null
+                || !previous.getId().equals(user.getDepartment().getId()))) {
+            previous.setHeadUserId(null);
+            departmentRepository.save(previous);
+        }
         return userRepository.save(user);
+    }
+
+    /** Public list for the registration form: id, code and name only. */
+    public java.util.List<Department> listDepartments() {
+        return departmentRepository.findAllByOrderByNameAsc();
     }
 
     @Transactional

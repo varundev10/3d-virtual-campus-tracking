@@ -13,6 +13,7 @@ public class Alert {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // The user the alert is about (the student who bunked, the faculty member who was off schedule, ...).
     @Column(nullable = false)
     private Long userId;
 
@@ -26,7 +27,16 @@ public class Alert {
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    // Null on rows created before acknowledgement existed; read through isAcknowledged().
+    private Boolean acknowledged;
+    private LocalDateTime acknowledgedAt;
+    private Long acknowledgedBy;
+
+    public boolean getAcknowledged() {
+        return Boolean.TRUE.equals(acknowledged);
+    }
+
     public enum AlertType {
-        BUNK_DETECTED, FACULTY_OFF_SCHEDULE
+        BUNK_DETECTED, FACULTY_OFF_SCHEDULE, UNUSUAL_MOVEMENT
     }
 }

@@ -78,7 +78,7 @@ public class AdminController {
         body.put("locations", locations);
         body.put("tracking", tracking);
         body.put("attendance", attendance);
-        body.put("alerts", Map.of("total", alertRepository.count()));
+        body.put("alerts", Map.of("total", alertRepository.count(), "open", alertRepository.countOpen()));
         return ResponseEntity.ok(body);
     }
 
@@ -117,7 +117,14 @@ public class AdminController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        Specification<AttendanceRecord> spec = (root, query, cb) -> {
+        Specification<AttendanceRecord> spec = attendanceSpec(userId, status, classroomId, from, to);
+        return ResponseEntity.ok(PageResponse.of(attendanceRecordRepository.findAll(spec, pageable(page, size, "checkTime"))));
+    }
+
+    // Shared by the attendance table and the CSV export so both always filter the same way.
+    static Specification<AttendanceRecord> attendanceSpec(Long userId, AttendanceRecord.Status status,
+                                                          String classroomId, LocalDate from, LocalDate to) {
+        return (root, query, cb) -> {
             List<Predicate> p = new ArrayList<>();
             if (userId != null) p.add(cb.equal(root.get("userId"), userId));
             if (status != null) p.add(cb.equal(root.get("status"), status));
@@ -128,12 +135,12 @@ public class AdminController {
             if (to != null) p.add(cb.lessThan(root.get("checkTime"), to.plusDays(1).atStartOfDay()));
             return cb.and(p.toArray(new Predicate[0]));
         };
-        return ResponseEntity.ok(PageResponse.of(attendanceRecordRepository.findAll(spec, pageable(page, size, "checkTime"))));
     }
 
     @GetMapping("/alerts")
     public ResponseEntity<PageResponse<Alert>> alerts(
             @RequestParam(required = false) Alert.AlertType type,
+            @RequestParam(required = false) Boolean acknowledged,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "0") int page,
@@ -141,6 +148,10 @@ public class AdminController {
         Specification<Alert> spec = (root, query, cb) -> {
             List<Predicate> p = new ArrayList<>();
             if (type != null) p.add(cb.equal(root.get("type"), type));
+            if (Boolean.TRUE.equals(acknowledged)) p.add(cb.isTrue(root.get("acknowledged")));
+            else if (Boolean.FALSE.equals(acknowledged)) {
+                p.add(cb.or(cb.isNull(root.get("acknowledged")), cb.isFalse(root.get("acknowledged"))));
+            }
             if (from != null) p.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from.atStartOfDay()));
             if (to != null) p.add(cb.lessThan(root.get("createdAt"), to.plusDays(1).atStartOfDay()));
             return cb.and(p.toArray(new Predicate[0]));

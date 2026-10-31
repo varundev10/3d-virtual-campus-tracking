@@ -3,12 +3,12 @@ import CampusAtlas from '../../components/CampusAtlas.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import { AsyncBlock, EmptyState } from '../../components/ui/States.jsx';
 import { api } from '../../lib/api.js';
-import { useAuth } from '../../lib/auth.jsx';
+import { isFaculty, useAuth } from '../../lib/auth.jsx';
 import { useAsync } from '../../lib/useAsync.js';
 import { Link } from '../../lib/router.jsx';
 import { categoryColor, categoryLabel } from '../../lib/locationCategories.js';
 import { formatCoordinate } from '../../lib/geo.js';
-import { formatDateTime, timeAgo, titleCase } from '../../lib/format.js';
+import { formatClock, formatDateTime, timeAgo, titleCase } from '../../lib/format.js';
 import { clearRecentDestinations, readRecentDestinations } from '../../lib/recentDestinations.js';
 
 const QUICK_ACTIONS = [
@@ -22,6 +22,53 @@ function greeting(date = new Date()) {
   const hour = date.getHours();
   if (hour < 12) return 'Good morning';
   return hour < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+// Today's classes for a student (their department's timetable) or faculty member (the classes they teach).
+function ClassesToday({ user }) {
+  const schedule = useAsync(() => api.getMySchedule(), []);
+  const faculty = isFaculty(user);
+  const link = faculty ? '/app/teaching' : '/app/attendance';
+
+  return (
+    <section className="card" aria-labelledby="classes-title">
+      <header className="card-header">
+        <div>
+          <h2 id="classes-title">{faculty ? 'Teaching today' : 'Classes today'}</h2>
+          {user.departmentName && <p>{user.departmentName}</p>}
+        </div>
+        <Link to={link} className="btn btn-ghost btn-sm">{faculty ? 'Open teaching' : 'My attendance'}</Link>
+      </header>
+      <AsyncBlock resource={schedule} loadingLabel="Loading today's classes">
+        {(data) => {
+          const today = data.sessions.filter((s) => s.dayOfWeek === data.dayOfWeek).sort((a, b) => a.startTime.localeCompare(b.startTime));
+          if (!user.departmentId && !faculty) {
+            return <EmptyState icon="building" title="No department yet">Ask administration to assign your department to see its timetable.</EmptyState>;
+          }
+          if (today.length === 0) {
+            return <EmptyState icon="clock" title="No classes today">{faculty ? 'You are not teaching today.' : 'Nothing is timetabled for today.'}</EmptyState>;
+          }
+          return (
+            <ul className="today-list">
+              {today.map((s) => {
+                const record = data.todayRecords.find((r) => r.sessionId === s.id);
+                return (
+                  <li key={s.id}>
+                    <span className="mono">{formatClock(s.startTime)}–{formatClock(s.endTime)}</span>
+                    <div>
+                      <strong>{s.subject}</strong>
+                      <small>{s.classroomCode}{!faculty && s.facultyName ? ` · ${s.facultyName}` : ''}</small>
+                    </div>
+                    {record && <span className={`badge badge-status-${record.status.toLowerCase()}`}>{titleCase(record.status)}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }}
+      </AsyncBlock>
+    </section>
+  );
 }
 
 export default function UserDashboard() {
@@ -76,6 +123,8 @@ export default function UserDashboard() {
       </section>
 
       <div className="grid-2">
+        <ClassesToday user={user} />
+
         <section className="card" aria-labelledby="dir-title">
           <header className="card-header"><h2 id="dir-title">Campus directory</h2></header>
           <AsyncBlock resource={locations} loadingLabel="Loading campus locations">

@@ -16,4 +16,9 @@ public interface AlertRepository extends JpaRepository<Alert, Long>, JpaSpecific
             group by a.type
             """)
     List<Object[]> countByTypeBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    boolean existsByUserIdAndTypeAndCreatedAtAfter(Long userId, Alert.AlertType type, LocalDateTime since);
+
+    @Query("select count(a) from Alert a where a.acknowledged is null or a.acknowledged = false")
+    long countOpen();
 }

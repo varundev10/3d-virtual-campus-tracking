@@ -5,11 +5,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface AttendanceRecordRepository extends JpaRepository<AttendanceRecord, Long>, JpaSpecificationExecutor<AttendanceRecord> {
     List<AttendanceRecord> findByUserId(Long userId);
+
+    Optional<AttendanceRecord> findByUserIdAndSessionIdAndSessionDate(Long userId, Long sessionId, LocalDate sessionDate);
+
+    List<AttendanceRecord> findBySessionIdAndSessionDate(Long sessionId, LocalDate sessionDate);
+
+    List<AttendanceRecord> findByUserIdInAndSessionDateBetween(Collection<Long> userIds, LocalDate from, LocalDate to);
 
     @Query("select a.status, count(a) from AttendanceRecord a group by a.status")
     List<Object[]> countByStatus();

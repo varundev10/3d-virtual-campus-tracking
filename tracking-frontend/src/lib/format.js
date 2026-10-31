@@ -40,3 +40,14 @@ export function isoDate(date) {
 export function daysAgo(days) {
   return isoDate(Date.now() - days * 86_400_000);
 }
+
+export const WEEKDAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+// "10:00:00" -> "10:00"
+export function formatClock(value) {
+  return value ? String(value).slice(0, 5) : '—';
+}
+
+export function formatPercent(value) {
+  return `${Number(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+}

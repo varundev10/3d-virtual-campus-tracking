@@ -11,6 +11,15 @@ export function AccountSummary({ user, brief = false }) {
       {!brief && <div><dt>Name</dt><dd>{user.name}</dd></div>}
       {!brief && <div><dt>Email</dt><dd>{user.email}</dd></div>}
       {!brief && <div><dt>Role</dt><dd><span className={`badge badge-role-${user.role.toLowerCase()}`}>{titleCase(user.role)}</span></dd></div>}
+      {user.role !== 'ADMIN' && (
+        <div>
+          <dt>Department</dt>
+          <dd>
+            {user.departmentName ?? 'Not assigned'}
+            {user.headOfDepartment && <span className="badge badge-good">Head of department</span>}
+          </dd>
+        </div>
+      )}
       <div><dt>Status</dt><dd>{user.active ? 'Active' : 'Deactivated'}</dd></div>
       <div><dt>Member since</dt><dd>{formatDate(user.createdAt)}</dd></div>
       <div><dt>User ID</dt><dd>{user.id}</dd></div>

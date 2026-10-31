@@ -32,13 +32,13 @@ public class AttendanceController {
     @PostMapping("/present")
     public ResponseEntity<AttendanceRecord> markPresent(@RequestParam Long userId, @RequestParam String classroomId) {
         requireTarget(userId, classroomId);
-        return ResponseEntity.ok(attendanceService.markPresent(userId, classroomId.trim()));
+        return ResponseEntity.ok(attendanceService.markPresent(userId, classroomId.trim(), currentUser.id()));
     }
 
     @PostMapping("/bunk")
     public ResponseEntity<AttendanceRecord> markBunked(@RequestParam Long userId, @RequestParam String classroomId) {
         requireTarget(userId, classroomId);
-        return ResponseEntity.ok(attendanceService.markBunked(userId, classroomId.trim()));
+        return ResponseEntity.ok(attendanceService.markBunked(userId, classroomId.trim(), currentUser.id()));
     }
 
     @GetMapping("/{userId}")

@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../components/ui/Icon.jsx';
+import Assistant from '../components/Assistant.jsx';
 import CommandPalette from '../components/CommandPalette.jsx';
 import ThemeToggle from '../components/ui/ThemeToggle.jsx';
 import FooterWordmark from '../components/fx/FooterWordmark.jsx';
 import { Link, useRouter } from '../lib/router.jsx';
-import { useAuth } from '../lib/auth.jsx';
+import { isFaculty, useAuth } from '../lib/auth.jsx';
 import { useDocumentTitle } from '../lib/useDocumentTitle.js';
 
-const NAV = [
-  { to: '/app', label: 'Dashboard', icon: 'home', exact: true },
-  { to: '/app/explore', label: 'Campus explorer', icon: 'cube' },
-  { to: '/app/profile', label: 'Profile', icon: 'user' },
+const HOME = { to: '/app', label: 'Dashboard', icon: 'home', exact: true };
+const EXPLORER = { to: '/app/explore', label: 'Campus explorer', icon: 'cube' };
+const PROFILE = { to: '/app/profile', label: 'Profile', icon: 'user' };
+
+// Faculty get teaching tools in place of the student attendance page.
+const STUDENT_NAV = [HOME, EXPLORER, { to: '/app/attendance', label: 'Attendance', icon: 'clock' }, PROFILE];
+const FACULTY_NAV = [
+  HOME,
+  EXPLORER,
+  { to: '/app/teaching', label: 'Teaching', icon: 'users' },
+  { to: '/app/department', label: 'Department', icon: 'building' },
+  PROFILE,
 ];
 
 // Routes that render edge to edge under the header (the 3D explorer).
@@ -80,6 +89,7 @@ function ProfileMenu({ user, onLogout }) {
 export default function UserLayout({ children }) {
   const { path } = useRouter();
   const { user, logout } = useAuth();
+  const NAV = isFaculty(user) ? FACULTY_NAV : STUDENT_NAV;
   const immersive = IMMERSIVE.includes(path.replace(/\/+$/, ''));
   useDocumentTitle(NAV.find((item) => (item.exact ? path === item.to : path.startsWith(item.to)))?.label);
 
@@ -113,6 +123,7 @@ export default function UserLayout({ children }) {
       </header>
       <main id="main" className="user-main" tabIndex={-1}>{children}</main>
       {!immersive && <FooterWordmark />}
+      <Assistant />
     </div>
   );
 }

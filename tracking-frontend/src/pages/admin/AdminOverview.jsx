@@ -2,25 +2,20 @@ import AdminLayout from '../../layouts/AdminLayout.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import StatCard from '../../components/ui/StatCard.jsx';
 import { BarList, ChartCard } from '../../components/ui/Charts.jsx';
-import { EmptyState, ErrorState } from '../../components/ui/States.jsx';
+import { ErrorState } from '../../components/ui/States.jsx';
+import AlertsPanel from '../../components/AlertsPanel.jsx';
+import AttentionStrip from '../../components/AttentionStrip.jsx';
+import OccupancyCard from '../../components/OccupancyCard.jsx';
 import { api } from '../../lib/api.js';
 import { useAsync } from '../../lib/useAsync.js';
 import { Link } from '../../lib/router.jsx';
-import { formatDateTime, formatNumber, timeAgo, titleCase } from '../../lib/format.js';
+import { formatDateTime, formatNumber, titleCase } from '../../lib/format.js';
 import { categoryLabel } from '../../lib/locationCategories.js';
 
 const toRows = (map, label = titleCase) => Object.entries(map ?? {}).map(([key, value]) => ({ label: label(key), value }));
 
 export default function AdminOverview() {
   const stats = useAsync(() => api.getAdminStats(), []);
-  const alerts = useAsync(() => api.getAlerts({ size: 5 }), []);
-  const users = useAsync(() => api.getUsers(), []);
-  const nameFor = (id) => users.data?.find((u) => u.id === id)?.name ?? `User ${id}`;
-
-  const refresh = () => {
-    stats.reload();
-    alerts.reload();
-  };
 
   const s = stats.data;
 
@@ -28,7 +23,7 @@ export default function AdminOverview() {
     <AdminLayout
       title="Overview"
       actions={(
-        <button type="button" className="btn btn-secondary btn-sm" onClick={refresh} disabled={stats.loading}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={stats.reload} disabled={stats.loading}>
           <Icon name="refresh" size={16} /> Refresh
         </button>
       )}
@@ -57,8 +52,11 @@ export default function AdminOverview() {
               hint={`${formatNumber(s.tracking.pingsTotal)} stored in total`} />
             <StatCard icon="clock" label="Attendance records" value={formatNumber(s.attendance.total)}
               hint={Object.entries(s.attendance.byStatus).map(([k, v]) => `${formatNumber(v)} ${k.toLowerCase()}`).join(' · ') || 'None recorded'} />
-            <StatCard icon="alert" label="Alerts" value={formatNumber(s.alerts.total)} hint="Bunk / off-schedule alerts" />
+            <StatCard icon="alert" label="Open alerts" value={formatNumber(s.alerts.open)}
+              hint={`${formatNumber(s.alerts.total)} raised in total`} />
           </div>
+
+          <AttentionStrip refreshKey={s.generatedAt} />
 
           <div className="grid-2">
             <ChartCard title="Users by role" rows={toRows(s.users.byRole)} labelHeader="Role" valueHeader="Users" empty="No users registered yet.">
@@ -70,31 +68,16 @@ export default function AdminOverview() {
           </div>
 
           <div className="grid-2">
-            <section className="card" aria-labelledby="alerts-title">
-              <header className="card-header">
-                <h2 id="alerts-title">Latest alerts</h2>
-                <Link to="/admin/reports" className="btn btn-ghost btn-sm">All reports</Link>
-              </header>
-              {alerts.error && <ErrorState message={alerts.error.message} onRetry={alerts.reload} />}
-              {alerts.data && alerts.data.content.length === 0 && (
-                <EmptyState icon="check" title="No alerts">Alerts are raised when a student is marked as bunked.</EmptyState>
-              )}
-              {alerts.data?.content.length > 0 && (
-                <ul className="timeline">
-                  {alerts.data.content.map((a) => (
-                    <li key={a.id}>
-                      <strong>{titleCase(a.type)} — {nameFor(a.userId)}</strong>
-                      <span>{a.message} · <time title={formatDateTime(a.createdAt)}>{timeAgo(a.createdAt)}</time></span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <AlertsPanel title="Alerts" subtitle="Bunks, classes missed by faculty and impossible movements." canAcknowledge pageSize={5} onChange={stats.reload} />
+            <OccupancyCard />
+          </div>
 
+          <div className="grid-2">
             <section className="card" aria-labelledby="shortcuts-title">
               <header className="card-header"><h2 id="shortcuts-title">Shortcuts</h2></header>
               <ul className="link-list">
                 <li><Link to="/admin/users"><Icon name="users" /> <span>Manage users and roles</span></Link></li>
+                <li><Link to="/admin/academics"><Icon name="clock" /> <span>Departments, classrooms and the timetable</span></Link></li>
                 <li><Link to="/admin/locations"><Icon name="building" /> <span>Add or edit campus locations</span></Link></li>
                 <li><Link to="/admin/tracking"><Icon name="activity" /> <span>Open the live tracking view</span></Link></li>
                 <li><Link to="/admin/reports"><Icon name="chart" /> <span>Activity and attendance reports</span></Link></li>
